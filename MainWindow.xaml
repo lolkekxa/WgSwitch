@@ -238,6 +238,8 @@
                             </StackPanel>
                         </Button>
                     </Grid>
+
+                    <Button Style="{StaticResource MadeBy}" HorizontalAlignment="Center" Margin="0,22,0,0" Click="MadeBy_Click" />
                 </StackPanel>
 
                 <Grid Grid.Row="1">

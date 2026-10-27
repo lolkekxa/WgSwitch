@@ -185,6 +185,51 @@
             </Setter>
         </Style>
 
+        <!-- ===== «Сделано в LKXA»: бейдж студии в цветах приложения; при наведении ✦ поворачивается, как на сайте ===== -->
+        <Style x:Key="MadeBy" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="ToolTip" Value="lkxa.ru" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Height="26" CornerRadius="13" BorderThickness="1" BorderBrush="#1FFFFFFF"
+                                Background="{StaticResource Bg}" Padding="10,0,12,0">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Path x:Name="star" Data="M12 1Q12 12 23 12Q12 12 12 23Q12 12 1 12Q12 12 12 1Z" Width="10" Height="10"
+                                      Stretch="Uniform" Fill="{StaticResource Violet}" RenderTransformOrigin="0.5,0.5" VerticalAlignment="Center">
+                                    <Path.RenderTransform><RotateTransform /></Path.RenderTransform>
+                                </Path>
+                                <TextBlock Margin="8,0,0,0" FontFamily="{StaticResource Sans}" FontSize="11" VerticalAlignment="Center"
+                                           Foreground="{StaticResource Muted}">
+                                    <Run Text="Сделано в" /> <Run Text="LKXA" Foreground="{StaticResource Fg}" FontWeight="Medium" />
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#408B5CF6" />
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="star" Storyboard.TargetProperty="RenderTransform.Angle" To="90" Duration="0:0:0.7" EasingFunction="{StaticResource Expo}" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="star" Storyboard.TargetProperty="RenderTransform.Angle" To="0" Duration="0:0:0.7" EasingFunction="{StaticResource Expo}" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- ===== капсула сервера на главном экране: точка состояния + имя; выбранная — с заливкой ===== -->
         <Style x:Key="Chip" TargetType="Button">
             <Setter Property="Foreground" Value="{StaticResource Muted}" />

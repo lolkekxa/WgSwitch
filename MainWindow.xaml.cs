@@ -808,6 +808,8 @@ public partial class MainWindow : Window
 
     private void Install_Click(object sender, RoutedEventArgs e) => App.OpenUrl(WireGuardService.InstallUrl);
 
+    private void MadeBy_Click(object sender, RoutedEventArgs e) => App.OpenUrl("https://lkxa.ru/?ref=wgswitch");
+
     private void CreateNext_Click(object sender, RoutedEventArgs e)
     {
         HideError(Step2Error);
