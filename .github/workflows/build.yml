@@ -32,7 +32,7 @@ jobs:
           retention-days: 3
 
       # главное место для exe — релизы: они в квоту артефактов не входят.
-      # Каждый пуш в main обновляет пре-релиз «latest», тег v1.2.0 создаёт обычный релиз.
+      # Каждый пуш в main обновляет релиз «latest», тег v1.2.0 создаёт отдельный постоянный релиз.
       - name: Move tag «latest» to this commit
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
@@ -45,8 +45,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: latest (main)
-          prerelease: true
+          name: WgSwitch (последняя сборка)
+          prerelease: false
+          make_latest: true
           body: Последняя сборка из main (${{ github.sha }}). Нужен .NET 8 Desktop Runtime.
           files: out/WgSwitch.exe
 
