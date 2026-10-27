@@ -133,7 +133,7 @@
                     </TextBlock>
                 </StackPanel>
 
-                <TextBlock x:Name="SubText" Grid.Row="3" HorizontalAlignment="Center" Margin="0,6,0,0"
+                <TextBlock x:Name="SubText" Grid.Row="3" HorizontalAlignment="Center" Margin="0,6,0,0" Style="{StaticResource CopyHover}" MouseLeftButtonUp="CopyValue_MouseUp"
                            FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource Muted}" Text="wg0 · 10.8.0.1" />
 
                 <!-- короткое сообщение: ошибка, подсказка, ссылка на установку -->
@@ -153,11 +153,11 @@
                         <StackPanel Grid.Row="3" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="04" /><TextBlock Style="{StaticResource Label}" Text="Handshake" /></StackPanel>
                         <StackPanel Grid.Row="4" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="05" /><TextBlock Style="{StaticResource Label}" Text="Трафик" /></StackPanel>
 
-                        <TextBlock x:Name="ServerValue" Style="{StaticResource Value}" VerticalAlignment="Center" />
-                        <TextBlock x:Name="PingValue" Grid.Row="1" Style="{StaticResource Value}" VerticalAlignment="Center" />
-                        <TextBlock x:Name="UptimeValue" Grid.Row="2" Style="{StaticResource Value}" VerticalAlignment="Center" />
-                        <TextBlock x:Name="HandshakeValue" Grid.Row="3" Style="{StaticResource Value}" VerticalAlignment="Center" />
-                        <TextBlock x:Name="TrafficValue" Grid.Row="4" Style="{StaticResource Value}" VerticalAlignment="Center" />
+                        <TextBlock x:Name="ServerValue" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                        <TextBlock x:Name="PingValue" Grid.Row="1" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                        <TextBlock x:Name="UptimeValue" Grid.Row="2" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                        <TextBlock x:Name="HandshakeValue" Grid.Row="3" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                        <TextBlock x:Name="TrafficValue" Grid.Row="4" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
                     </Grid>
                 </Border>
             </Grid>

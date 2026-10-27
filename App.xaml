@@ -440,11 +440,31 @@
             <Setter Property="Foreground" Value="#5A5A5A" />
             <Setter Property="Margin" Value="0,6,0,0" />
         </Style>
+        <!-- значение, которое копируется кликом: рука и лёгкое затухание при наведении -->
+        <Style x:Key="CopyHover" TargetType="TextBlock">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ToolTip" Value="Нажмите, чтобы скопировать" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.7" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
         <Style x:Key="Value" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource Mono}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Foreground" Value="{StaticResource Fg}" />
             <Setter Property="HorizontalAlignment" Value="Right" />
+        </Style>
+
+        <Style x:Key="Copyable" TargetType="TextBlock" BasedOn="{StaticResource Value}">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="ToolTip" Value="Нажмите, чтобы скопировать" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.7" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
 
     </Application.Resources>

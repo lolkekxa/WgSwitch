@@ -85,6 +85,7 @@ public partial class MainWindow : Window
         _wg.Heartbeat -= OnHeartbeat;
         _wg.SetDetailed(false);
         _clock.Stop();
+        foreach (var t in _copied.Values) t.Stop();
         SpinnerTurn.BeginAnimation(RotateTransform.AngleProperty, null);
         StopDotPing();
     }
@@ -155,7 +156,7 @@ public partial class MainWindow : Window
             if (animate) Roll(StateText, StateShift);
         }
 
-        SubText.Text = $"{s.TunnelName} · {PingHost}";
+        if (!IsCopied(SubText)) SubText.Text = $"{s.TunnelName} · {PingHost}";
         RenderMessage(s);
         RenderStats(s);
 
@@ -193,7 +194,7 @@ public partial class MainWindow : Window
 
         Set(ServerValue, PingHost, true);
         Set(PingValue, s.PingMs is { } p ? $"{p} мс" : up ? "нет ответа" : "—", s.PingMs is not null);
-        if (up && s.PingMs is null) PingValue.Foreground = new SolidColorBrush(Red);
+        if (up && s.PingMs is null && !IsCopied(PingValue)) PingValue.Foreground = new SolidColorBrush(Red);
         Set(TrafficValue, s.RxBytes is { } rx && s.TxBytes is { } tx ? $"↓ {Bytes(rx)}  ↑ {Bytes(tx)}" : "—", s.RxBytes is not null);
         RenderTimes();
     }
@@ -206,11 +207,53 @@ public partial class MainWindow : Window
         Set(HandshakeValue, s.LastHandshake is { } hs ? Ago(DateTime.Now - hs) : "—", s.LastHandshake is not null);
     }
 
-    private static void Set(TextBlock tb, string text, bool known)
+    private void Set(TextBlock tb, string text, bool known)
     {
+        if (IsCopied(tb)) return; // пока висит «скопировано», значение не перерисовываем
         tb.Text = text;
         tb.Foreground = new SolidColorBrush(known ? Fg : Faint);
     }
+
+    // ---------- клик по значению — копирование ----------
+
+    private readonly Dictionary<TextBlock, DispatcherTimer> _copied = [];
+
+    private bool IsCopied(TextBlock tb) => _copied.ContainsKey(tb);
+
+    /// <summary>IP копируется чистым (и из карточки, и из строки под статусом), остальное — как на экране.</summary>
+    private void CopyValue_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        var tb = (TextBlock)sender;
+        if (IsCopied(tb)) return;
+        var text = tb == ServerValue || tb == SubText ? PingHost : tb.Text;
+        if (string.IsNullOrWhiteSpace(text) || text == "—") return;
+        try { Clipboard.SetText(text); }
+        catch (System.Runtime.InteropServices.COMException) { return; } // буфер занят другим приложением
+
+        tb.Text = "скопировано ✓";
+        tb.Foreground = new SolidColorBrush(Green);
+        Blink(tb);
+
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1200) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            _copied.Remove(tb);
+            if (tb == SubText)
+            {
+                SubText.Text = $"{_status.TunnelName} · {PingHost}";
+                SubText.Foreground = new SolidColorBrush(Muted);
+            }
+            else RenderStats(_status);
+            Blink(tb);
+        };
+        _copied[tb] = timer;
+        timer.Start();
+    }
+
+    /// <summary>Мягкое проявление при смене текста. FillBehavior.Stop — чтобы не перебить затухание при наведении.</summary>
+    private static void Blink(UIElement el) =>
+        el.BeginAnimation(OpacityProperty, new DoubleAnimation(0.3, 1, TimeSpan.FromMilliseconds(250)) { FillBehavior = FillBehavior.Stop });
 
     private static string Duration(TimeSpan t) =>
         t.TotalHours >= 24 ? $"{(int)t.TotalDays} д {t.Hours:00}:{t.Minutes:00}" : $"{(int)t.TotalHours:00}:{t.Minutes:00}:{t.Seconds:00}";
