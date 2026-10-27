@@ -151,7 +151,7 @@
             </Grid>
 
             <!-- ===================== настройки (выезжают справа) ===================== -->
-            <Grid x:Name="SettingsPanel" Margin="20,4,20,16" Visibility="Collapsed" Opacity="0">
+            <Grid x:Name="SettingsPanel" Margin="16,0,16,16" Visibility="Collapsed" Opacity="0">
                 <Grid.RenderTransform><TranslateTransform x:Name="SettingsShift" X="40" /></Grid.RenderTransform>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
@@ -159,7 +159,8 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel>
-                    <Grid Margin="0,8,0,0">
+                    <!-- (01) выбранный сервер -->
+                    <Grid Margin="4,8,4,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource Index}" Text="(01)" /><TextBlock Style="{StaticResource Label}" Text="Сервер" />
                         </StackPanel>
@@ -169,81 +170,98 @@
                             <Hyperlink Click="RemoveServer_Click" Foreground="{StaticResource Muted}" Cursor="Hand" TextDecorations="{x:Null}">Удалить</Hyperlink>
                         </TextBlock>
                     </Grid>
-
-                    <!-- имя и IP для пинга в одну строку; имя = имя файла и туннеля, при смене файл переименуется -->
-                    <Grid Margin="0,12,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="20" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource SettingsCard}">
                         <StackPanel>
-                            <TextBlock Style="{StaticResource Hint}" Margin="0" Text="Имя" />
-                            <TextBox x:Name="NameBox" Style="{StaticResource LineBox}" />
+                            <!-- имя = имя файла и туннеля: при смене файл переименуется -->
+                            <Grid Height="34">
+                                <TextBlock Style="{StaticResource Label}" Text="Имя" VerticalAlignment="Center" />
+                                <TextBox x:Name="NameBox" Style="{StaticResource InlineBox}" />
+                            </Grid>
+                            <Grid Height="34">
+                                <TextBlock Style="{StaticResource Label}" Text="IP для проверки" VerticalAlignment="Center" />
+                                <TextBox x:Name="PingBox" Style="{StaticResource InlineBox}" />
+                            </Grid>
+                            <Button x:Name="ConfigRow" Style="{StaticResource RowButton}" Click="Browse_Click">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource Label}" Text="Конфиг" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock x:Name="ConfigName" FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource Fg}"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="150" />
+                                        <Path Style="{StaticResource Chevron}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                            <!-- режим маршрутизации этого сервера; применяется только по «Сохранить» -->
+                            <CheckBox x:Name="FullTunnelSetting" Style="{StaticResource Toggle}" MinHeight="42">
+                                <StackPanel>
+                                    <TextBlock Text="Весь интернет через VPN" />
+                                    <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,0" Text="Нужен NAT на сервере, см. SERVER.md" />
+                                </StackPanel>
+                            </CheckBox>
                         </StackPanel>
-                        <StackPanel Grid.Column="2">
-                            <TextBlock Style="{StaticResource Hint}" Margin="0" Text="IP для проверки связи" />
-                            <TextBox x:Name="PingBox" Style="{StaticResource LineBox}" />
-                        </StackPanel>
-                    </Grid>
+                    </Border>
 
-                    <TextBlock Style="{StaticResource Hint}" Margin="0,12,0,0" Text="Конфиг" />
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBox x:Name="ConfigBox" Style="{StaticResource LineBox}" />
-                        <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="Обзор" Margin="10,0,0,0" Click="Browse_Click" />
-                    </Grid>
-
-                    <!-- режим маршрутизации этого сервера; применяется только по «Сохранить» -->
-                    <CheckBox x:Name="FullTunnelSetting" Style="{StaticResource BrandCheck}" Content="Весь интернет через VPN" Margin="0,16,0,0" />
-                    <TextBlock x:Name="FullTunnelHint" Style="{StaticResource Hint}" Margin="30,4,0,0" Text="Нужен NAT на сервере, см. SERVER.md" />
-
-                    <StackPanel Orientation="Horizontal" Margin="0,22,0,14">
+                    <!-- (02) запуск -->
+                    <StackPanel Orientation="Horizontal" Margin="4,16,4,0">
                         <TextBlock Style="{StaticResource Index}" Text="(02)" /><TextBlock Style="{StaticResource Label}" Text="Запуск" />
                     </StackPanel>
-                    <CheckBox x:Name="AutoStartBox" Style="{StaticResource BrandCheck}" Content="Запускать вместе с Windows" Checked="AutoStart_Changed" Unchecked="AutoStart_Changed" />
-                    <CheckBox x:Name="MinimizedBox" Style="{StaticResource BrandCheck}" Content="Сразу свёрнутым в трей" Margin="30,0,0,12" />
-                    <CheckBox x:Name="AutoConnectBox" Style="{StaticResource BrandCheck}" Content="Подключаться при запуске" />
+                    <Border Style="{StaticResource SettingsCard}">
+                        <StackPanel>
+                            <CheckBox x:Name="AutoStartBox" Style="{StaticResource Toggle}" Content="Вместе с Windows" Checked="AutoStart_Changed" Unchecked="AutoStart_Changed" />
+                            <CheckBox x:Name="MinimizedBox" Style="{StaticResource Toggle}" Content="Сразу свёрнутым в трей" />
+                            <CheckBox x:Name="AutoConnectBox" Style="{StaticResource Toggle}" Content="Подключаться при запуске" />
+                        </StackPanel>
+                    </Border>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,10,0,10">
+                    <!-- (03) резервная копия -->
+                    <StackPanel Orientation="Horizontal" Margin="4,16,4,0">
                         <TextBlock Style="{StaticResource Index}" Text="(03)" /><TextBlock Style="{StaticResource Label}" Text="Резервная копия" />
                     </StackPanel>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="8" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Button Style="{StaticResource TileButton}" Click="Export_Click" ToolTip="Серверы и ключи в зашифрованный файл">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Style="{StaticResource Glyph}" Data="M12 15V3 M7 8l5-5 5 5 M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <TextBlock Text="Экспорт" Margin="9,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Button Grid.Column="2" Style="{StaticResource TileButton}" Click="Import_Click" ToolTip="Восстановить из файла .wgsb">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Style="{StaticResource Glyph}" Data="M12 3v12 M7 10l5 5 5-5 M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <TextBlock Text="Импорт" Margin="9,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                    </Grid>
-
-                    <Button Style="{StaticResource MadeBy}" HorizontalAlignment="Center" Margin="0,16,0,0" Click="MadeBy_Click" />
+                    <Border Style="{StaticResource SettingsCard}">
+                        <StackPanel>
+                            <Button Style="{StaticResource RowButton}" Click="Export_Click">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource Label}" Text="Экспорт" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock Style="{StaticResource Label}" Text="в зашифрованный файл" VerticalAlignment="Center" Foreground="{StaticResource Faint}" />
+                                        <Path Style="{StaticResource Chevron}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                            <Button Style="{StaticResource RowButton}" Click="Import_Click">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource Label}" Text="Импорт" VerticalAlignment="Center" />
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock Style="{StaticResource Label}" Text="из файла .wgsb" VerticalAlignment="Center" Foreground="{StaticResource Faint}" />
+                                        <Path Style="{StaticResource Chevron}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
-                <Grid Grid.Row="1">
-                    <TextBlock x:Name="SettingsError" FontSize="12" Foreground="{StaticResource Red}" TextWrapping="Wrap"
-                               VerticalAlignment="Center" Margin="0,0,12,0" MaxWidth="150" HorizontalAlignment="Left" />
-                    <Button x:Name="SaveButton" Style="{StaticResource PillButton}" Content="Сохранить" HorizontalAlignment="Right" Click="Save_Click"
-                            Opacity="0" IsHitTestVisible="False" />
-                </Grid>
+                <StackPanel Grid.Row="1">
+                    <TextBlock x:Name="SettingsError" FontSize="12" Foreground="{StaticResource Red}" TextWrapping="Wrap" Margin="4,0,4,12">
+                        <!-- пока сообщения нет, строка не занимает места -->
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <Grid>
+                        <Button Style="{StaticResource MadeBy}" HorizontalAlignment="Left" VerticalAlignment="Center" Click="MadeBy_Click" />
+                        <Button x:Name="SaveButton" Style="{StaticResource PillButton}" Content="Сохранить" HorizontalAlignment="Right" Click="Save_Click"
+                                Opacity="0" IsHitTestVisible="False" />
+                    </Grid>
+                </StackPanel>
             </Grid>
 
-            <!-- ===================== первый запуск: 1/3 — WireGuard и выбор пути ===================== -->
-            <Grid x:Name="Step1" Margin="20,4,20,16" Visibility="Collapsed" Opacity="0">
+            <!-- ===================== первый запуск: 1/3 — WireGuard и с чего начать ===================== -->
+            <Grid x:Name="Step1" Margin="16,0,16,16" Visibility="Collapsed" Opacity="0">
                 <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
@@ -251,54 +269,78 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel>
-                    <Grid Margin="0,8,0,0">
+                    <Grid Margin="4,8,4,0">
                         <TextBlock x:Name="Step1Heading" Style="{StaticResource Heading}" Text="Настроим туннель" />
-                        <TextBlock x:Name="CancelSetupLink" Style="{StaticResource Label}" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed">
-                            <Hyperlink Click="CancelSetup_Click" Foreground="{StaticResource Muted}" Cursor="Hand" TextDecorations="{x:Null}">Отмена</Hyperlink>
-                        </TextBlock>
+                        <Button x:Name="CancelSetupLink" Style="{StaticResource TextButton}" Content="Отмена" HorizontalAlignment="Right"
+                                VerticalAlignment="Center" Height="28" Visibility="Collapsed" Click="CancelSetup_Click" />
                     </Grid>
-                    <TextBlock x:Name="Step1Intro" Style="{StaticResource Body}" Margin="0,8,0,0"
+                    <TextBlock x:Name="Step1Intro" Style="{StaticResource Body}" Margin="4,8,4,0"
                                Text="Проверим WireGuard, подготовим конфиг и покажем, что добавить на сервер. Займёт минуту." />
 
-                    <StackPanel Orientation="Horizontal" Margin="0,26,0,8">
-                        <TextBlock Style="{StaticResource Index}" Text="(01)" /><TextBlock Style="{StaticResource Label}" Text="WireGuard для Windows" />
+                    <StackPanel Orientation="Horizontal" Margin="4,24,4,0">
+                        <TextBlock Style="{StaticResource Index}" Text="(01)" /><TextBlock Style="{StaticResource Label}" Text="WireGuard" />
                     </StackPanel>
-                    <Border CornerRadius="16" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="16,0" Height="48">
-                        <Grid>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Ellipse x:Name="WgDot" Width="7" Height="7" Margin="0,1,10,0" Fill="{StaticResource Muted}">
-                                    <Ellipse.Effect><DropShadowEffect x:Name="WgDotGlow" ShadowDepth="0" BlurRadius="8" Opacity="0.9" /></Ellipse.Effect>
-                                </Ellipse>
-                                <TextBlock x:Name="WgStatusText" FontSize="13" Text="Проверяю…" />
-                            </StackPanel>
-                            <Button x:Name="InstallButton" Style="{StaticResource GhostButton}" Content="Установить ↗" HorizontalAlignment="Right"
-                                    VerticalAlignment="Center" Click="Install_Click" />
-                        </Grid>
+                    <Border Style="{StaticResource SettingsCard}">
+                        <StackPanel>
+                            <Grid Height="34">
+                                <TextBlock Style="{StaticResource Label}" Text="WireGuard для Windows" VerticalAlignment="Center" />
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <Ellipse x:Name="WgDot" Width="6" Height="6" Margin="0,1,8,0" Fill="{StaticResource Muted}">
+                                        <Ellipse.Effect><DropShadowEffect x:Name="WgDotGlow" ShadowDepth="0" BlurRadius="8" Opacity="0.9" /></Ellipse.Effect>
+                                    </Ellipse>
+                                    <TextBlock x:Name="WgStatusText" FontSize="12" Foreground="{StaticResource Fg}" Text="Проверяю…" />
+                                </StackPanel>
+                            </Grid>
+                            <Button x:Name="InstallButton" Style="{StaticResource RowButton}" Click="Install_Click">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource ActionLabel}" Text="Установить" />
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock Style="{StaticResource Label}" Text="wireguard.com" Foreground="{StaticResource Faint}" VerticalAlignment="Center" />
+                                        <Path Style="{StaticResource Chevron}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </StackPanel>
                     </Border>
-                    <TextBlock x:Name="WgHint" Style="{StaticResource Hint}" Text="После установки вернитесь сюда, статус обновится сам." />
+                    <TextBlock x:Name="WgHint" Style="{StaticResource Hint}" Margin="4,8,4,0" Text="После установки вернитесь сюда, статус обновится сам." />
 
-                    <StackPanel Orientation="Horizontal" Margin="0,26,0,8">
-                        <TextBlock Style="{StaticResource Index}" Text="(02)" /><TextBlock Style="{StaticResource Label}" Text="Конфиг" />
+                    <StackPanel Orientation="Horizontal" Margin="4,20,4,0">
+                        <TextBlock Style="{StaticResource Index}" Text="(02)" /><TextBlock Style="{StaticResource Label}" Text="С чего начнём" />
                     </StackPanel>
-                    <TextBlock Style="{StaticResource Body}"
-                               Text="Создам конфиг с новой парой ключей. Приватный ключ останется только в этом файле, а папка будет доступна лишь администраторам." />
-                    <TextBlock Style="{StaticResource Body}" Margin="0,14,0,0">
-                        <Run Text="Есть резервная копия?" />
-                        <Hyperlink Click="RestoreFromSetup_Click" Foreground="{StaticResource Fg}" Cursor="Hand">Восстановить</Hyperlink>
-                    </TextBlock>
+                    <Border Style="{StaticResource SettingsCard}">
+                        <StackPanel>
+                            <Button x:Name="CreateNextButton" Style="{StaticResource RowButton}" Click="CreateNext_Click">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource ActionLabel}" Text="Создать новый конфиг" />
+                                    <Path Style="{StaticResource Chevron}" HorizontalAlignment="Right" />
+                                </Grid>
+                            </Button>
+                            <Button Style="{StaticResource RowButton}" Click="HaveConf_Click">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource ActionLabel}" Text="У меня есть .conf" />
+                                    <Path Style="{StaticResource Chevron}" HorizontalAlignment="Right" />
+                                </Grid>
+                            </Button>
+                            <Button Style="{StaticResource RowButton}" Click="RestoreFromSetup_Click">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource ActionLabel}" Text="Восстановить из копии" />
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock Style="{StaticResource Label}" Text=".wgsb" Foreground="{StaticResource Faint}" VerticalAlignment="Center" />
+                                        <Path Style="{StaticResource Chevron}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Style="{StaticResource Hint}" Margin="4,8,4,0"
+                               Text="Приватный ключ останется только в конфиге, а папка с ним доступна лишь администраторам." />
                 </StackPanel>
 
-                <StackPanel Grid.Row="1">
-                    <TextBlock x:Name="Step1Error" Style="{StaticResource Body}" Foreground="{StaticResource Red}" Margin="0,0,0,12" Visibility="Collapsed" />
-                    <Grid>
-                        <Button Style="{StaticResource GhostButton}" Content="У меня есть .conf" Height="36" HorizontalAlignment="Left" Click="HaveConf_Click" />
-                        <Button x:Name="CreateNextButton" Style="{StaticResource PillButton}" Content="Создать конфиг" HorizontalAlignment="Right" Click="CreateNext_Click" />
-                    </Grid>
-                </StackPanel>
+                <TextBlock x:Name="Step1Error" Grid.Row="1" Style="{StaticResource Body}" Foreground="{StaticResource Red}" Margin="4,0" Visibility="Collapsed" />
             </Grid>
 
             <!-- ===================== 2/3 — данные сервера ===================== -->
-            <Grid x:Name="Step2" Margin="20,4,20,16" Visibility="Collapsed" Opacity="0">
+            <Grid x:Name="Step2" Margin="16,0,16,16" Visibility="Collapsed" Opacity="0">
                 <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
@@ -306,55 +348,62 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel>
-                    <TextBlock Style="{StaticResource Heading}" Text="Ваш сервер" Margin="0,8,0,0" />
+                    <TextBlock Style="{StaticResource Heading}" Text="Ваш сервер" Margin="4,8,4,0" />
 
-                    <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
-                        <TextBlock Style="{StaticResource Index}" Text="(01)" /><TextBlock Style="{StaticResource Label}" Text="Адрес сервера" />
+                    <StackPanel Orientation="Horizontal" Margin="4,20,4,0">
+                        <TextBlock Style="{StaticResource Index}" Text="(01)" /><TextBlock Style="{StaticResource Label}" Text="Сервер" />
                     </StackPanel>
-                    <TextBox x:Name="EndpointBox" Style="{StaticResource LineBox}" Margin="0,4,0,0" />
-                    <TextBlock Style="{StaticResource Hint}" Text="Публичный IP или домен. Порт по умолчанию 51820." />
-
-                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                        <TextBlock Style="{StaticResource Index}" Text="(02)" /><TextBlock Style="{StaticResource Label}" Text="Публичный ключ сервера" />
-                    </StackPanel>
-                    <TextBox x:Name="ServerKeyBox" Style="{StaticResource LineBox}" Margin="0,4,0,0" />
-                    <TextBlock Style="{StaticResource Hint}" Text="На сервере: sudo cat /etc/wireguard/server.pub" />
-
-                    <Grid Margin="0,16,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="20" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource SettingsCard}">
                         <StackPanel>
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource Index}" Text="(03)" /><TextBlock Style="{StaticResource Label}" Text="Имя" />
-                            </StackPanel>
-                            <TextBox x:Name="TunnelNameBox" Style="{StaticResource LineBox}" Margin="0,4,0,0" />
+                            <Grid Height="34">
+                                <TextBlock Style="{StaticResource Label}" Text="Адрес" VerticalAlignment="Center" />
+                                <TextBox x:Name="EndpointBox" Style="{StaticResource InlineBox}" Width="180" Tag="IP или домен" />
+                            </Grid>
+                            <Grid Height="34">
+                                <TextBlock Style="{StaticResource Label}" Text="Ключ" VerticalAlignment="Center" />
+                                <TextBox x:Name="ServerKeyBox" Style="{StaticResource InlineBox}" Width="180" Tag="из server.pub" />
+                            </Grid>
                         </StackPanel>
-                        <StackPanel Grid.Column="2">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Style="{StaticResource Index}" Text="(04)" /><TextBlock Style="{StaticResource Label}" Text="Ваш IP в VPN" />
-                            </StackPanel>
-                            <TextBox x:Name="ClientIpBox" Style="{StaticResource LineBox}" Margin="0,4,0,0" />
-                        </StackPanel>
-                    </Grid>
-                    <TextBlock Style="{StaticResource Hint}" Text="Имя — это файл и туннель. Сервер будет .1 в вашей подсети, его и пингуем." />
+                    </Border>
+                    <TextBlock Style="{StaticResource Hint}" Margin="4,8,4,0" Text="Ключ на сервере: sudo cat /etc/wireguard/server.pub. Порт по умолчанию 51820." />
 
-                    <CheckBox x:Name="FullTunnelBox" Style="{StaticResource BrandCheck}" Content="Весь интернет через VPN" Margin="0,18,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="4,20,4,0">
+                        <TextBlock Style="{StaticResource Index}" Text="(02)" /><TextBlock Style="{StaticResource Label}" Text="Этот компьютер" />
+                    </StackPanel>
+                    <Border Style="{StaticResource SettingsCard}">
+                        <StackPanel>
+                            <Grid Height="34">
+                                <TextBlock Style="{StaticResource Label}" Text="Имя" VerticalAlignment="Center" />
+                                <TextBox x:Name="TunnelNameBox" Style="{StaticResource InlineBox}" Tag="wg0" />
+                            </Grid>
+                            <Grid Height="34">
+                                <TextBlock Style="{StaticResource Label}" Text="IP в VPN" VerticalAlignment="Center" />
+                                <TextBox x:Name="ClientIpBox" Style="{StaticResource InlineBox}" Tag="10.8.0.2" />
+                            </Grid>
+                            <CheckBox x:Name="FullTunnelBox" Style="{StaticResource Toggle}" Content="Весь интернет через VPN" />
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Style="{StaticResource Hint}" Margin="4,8,4,0" Text="Имя — это файл и туннель. Сервер будет .1 в той же подсети, его и пингуем." />
                 </StackPanel>
 
                 <StackPanel Grid.Row="1">
-                    <TextBlock x:Name="Step2Error" Style="{StaticResource Body}" Foreground="{StaticResource Red}" Margin="0,0,0,12" Visibility="Collapsed" />
+                    <TextBlock x:Name="Step2Error" Style="{StaticResource Body}" Foreground="{StaticResource Red}" Margin="4,0,4,12" Visibility="Collapsed" />
                     <Grid>
-                        <Button Style="{StaticResource GhostButton}" Content="Назад" Height="36" HorizontalAlignment="Left" Click="Back_Click" />
+                        <Button Style="{StaticResource TextButton}" HorizontalAlignment="Left" Margin="4,0,0,0" Click="Back_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="M5 1L1 5l4 4" Width="6" Height="10" Stretch="Uniform" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" VerticalAlignment="Center" Margin="0,0,8,0"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                <TextBlock Text="Назад" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                         <Button x:Name="CreateButton" Style="{StaticResource PillButton}" Content="Создать" HorizontalAlignment="Right" Click="Create_Click" />
                     </Grid>
                 </StackPanel>
             </Grid>
 
             <!-- ===================== 3/3 — ключ клиента на сервер ===================== -->
-            <Grid x:Name="Step3" Margin="20,4,20,16" Visibility="Collapsed" Opacity="0">
+            <Grid x:Name="Step3" Margin="16,0,16,16" Visibility="Collapsed" Opacity="0">
                 <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
@@ -362,32 +411,41 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel>
-                    <TextBlock Style="{StaticResource Heading}" Text="Ключ на сервер" Margin="0,8,0,0" />
-                    <TextBlock Style="{StaticResource Body}" Margin="0,8,0,0"
-                               Text="Конфиг готов. Чтобы сервер вас пустил, допишите этот блок в /etc/wireguard/wg0.conf на сервере:" />
+                    <TextBlock Style="{StaticResource Heading}" Text="Ключ на сервер" Margin="4,8,4,0" />
+                    <TextBlock Style="{StaticResource Body}" Margin="4,8,4,0"
+                               Text="Конфиг готов. Допишите этот блок в /etc/wireguard/wg0.conf на сервере." />
 
-                    <Border CornerRadius="16" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="14,12" Margin="0,14,0,0">
-                        <TextBlock x:Name="PeerText" FontFamily="{StaticResource Mono}" FontSize="11" LineHeight="17"
-                                   Foreground="{StaticResource Fg}" TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Margin="4,20,4,0">
+                        <TextBlock Style="{StaticResource Index}" Text="(01)" /><TextBlock Style="{StaticResource Label}" Text="Блок для сервера" />
+                    </StackPanel>
+                    <Border Style="{StaticResource SettingsCard}" Padding="16,12,16,4">
+                        <StackPanel>
+                            <TextBlock x:Name="PeerText" FontFamily="{StaticResource Mono}" FontSize="11" LineHeight="17"
+                                       Foreground="{StaticResource Fg}" TextWrapping="Wrap" />
+                            <Button x:Name="CopyButton" Style="{StaticResource TextButton}" Content="Скопировать" HorizontalAlignment="Right" Height="30" Click="Copy_Click" />
+                        </StackPanel>
                     </Border>
-                    <Button x:Name="CopyButton" Style="{StaticResource GhostButton}" Content="Скопировать" HorizontalAlignment="Left" Margin="0,10,0,0" Click="Copy_Click" />
 
-                    <TextBlock Style="{StaticResource Body}" Margin="0,16,0,0" Text="Затем примените без разрыва остальных:" />
-                    <TextBlock FontFamily="{StaticResource Mono}" FontSize="11" Foreground="{StaticResource Fg}" Margin="0,6,0,0" TextWrapping="Wrap"
-                               Text="sudo bash -c 'wg syncconf wg0 &lt;(wg-quick strip wg0)'" />
+                    <StackPanel Orientation="Horizontal" Margin="4,20,4,0">
+                        <TextBlock Style="{StaticResource Index}" Text="(02)" /><TextBlock Style="{StaticResource Label}" Text="Применить без разрыва остальных" />
+                    </StackPanel>
+                    <Border Style="{StaticResource SettingsCard}" Padding="16,12">
+                        <TextBlock FontFamily="{StaticResource Mono}" FontSize="11" LineHeight="17" Foreground="{StaticResource Fg}" TextWrapping="Wrap"
+                                   Text="sudo bash -c 'wg syncconf wg0 &lt;(wg-quick strip wg0)'" />
+                    </Border>
 
-                    <TextBlock x:Name="ServerCidrText" Style="{StaticResource Body}" Margin="0,14,0,0" />
-                    <TextBlock x:Name="SavedPathText" Style="{StaticResource Hint}" Margin="0,10,0,0" />
+                    <TextBlock x:Name="ServerCidrText" Style="{StaticResource Hint}" Margin="4,12,4,0" />
+                    <TextBlock x:Name="SavedPathText" Style="{StaticResource Hint}" Margin="4,4,4,0" />
                 </StackPanel>
 
                 <StackPanel Grid.Row="1">
-                    <TextBlock x:Name="Step3Error" Style="{StaticResource Body}" Foreground="{StaticResource Red}" Margin="0,0,0,12" Visibility="Collapsed" />
+                    <TextBlock x:Name="Step3Error" Style="{StaticResource Body}" Foreground="{StaticResource Red}" Margin="4,0,4,12" Visibility="Collapsed" />
                     <Button Style="{StaticResource PillButton}" Content="Готово" HorizontalAlignment="Right" Click="Done_Click" />
                 </StackPanel>
             </Grid>
 
             <!-- ===================== резервная копия: экспорт / импорт ===================== -->
-            <Grid x:Name="BackupPanel" Margin="20,4,20,16" Visibility="Collapsed" Opacity="0">
+            <Grid x:Name="BackupPanel" Margin="16,0,16,16" Visibility="Collapsed" Opacity="0">
                 <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="*" />
@@ -395,27 +453,38 @@
                 </Grid.RowDefinitions>
 
                 <StackPanel>
-                    <TextBlock x:Name="BackupHeading" Style="{StaticResource Heading}" Margin="0,8,0,0" />
-                    <TextBlock x:Name="BackupIntro" Style="{StaticResource Body}" Margin="0,8,0,0" />
+                    <TextBlock x:Name="BackupHeading" Style="{StaticResource Heading}" Margin="4,8,4,0" />
+                    <TextBlock x:Name="BackupIntro" Style="{StaticResource Body}" Margin="4,8,4,0" />
 
-                    <StackPanel Orientation="Horizontal" Margin="0,22,0,0">
+                    <StackPanel Orientation="Horizontal" Margin="4,20,4,0">
                         <TextBlock Style="{StaticResource Index}" Text="(01)" /><TextBlock Style="{StaticResource Label}" Text="Пароль от файла" />
                     </StackPanel>
-                    <PasswordBox x:Name="BackupPass" Style="{StaticResource LinePass}" Margin="0,4,0,0" />
-
-                    <StackPanel x:Name="BackupRepeatRow">
-                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                            <TextBlock Style="{StaticResource Index}" Text="(02)" /><TextBlock Style="{StaticResource Label}" Text="Ещё раз" />
+                    <Border Style="{StaticResource SettingsCard}">
+                        <StackPanel>
+                            <Grid Height="38">
+                                <TextBlock Style="{StaticResource Label}" Text="Пароль" VerticalAlignment="Center" />
+                                <PasswordBox x:Name="BackupPass" Style="{StaticResource InlinePass}" />
+                            </Grid>
+                            <Grid x:Name="BackupRepeatRow" Height="38">
+                                <TextBlock Style="{StaticResource Label}" Text="Ещё раз" VerticalAlignment="Center" />
+                                <PasswordBox x:Name="BackupPass2" Style="{StaticResource InlinePass}" />
+                            </Grid>
                         </StackPanel>
-                        <PasswordBox x:Name="BackupPass2" Style="{StaticResource LinePass}" Margin="0,4,0,0" />
-                    </StackPanel>
-                    <TextBlock x:Name="BackupHint" Style="{StaticResource Hint}" Margin="0,10,0,0" />
+                    </Border>
+                    <TextBlock x:Name="BackupHint" Style="{StaticResource Hint}" Margin="4,8,4,0" />
                 </StackPanel>
 
                 <StackPanel Grid.Row="1">
-                    <TextBlock x:Name="BackupError" Style="{StaticResource Body}" Foreground="{StaticResource Red}" Margin="0,0,0,12" Visibility="Collapsed" />
+                    <TextBlock x:Name="BackupError" Style="{StaticResource Body}" Foreground="{StaticResource Red}" Margin="4,0,4,12" Visibility="Collapsed" />
                     <Grid>
-                        <Button Style="{StaticResource GhostButton}" Content="Назад" Height="36" HorizontalAlignment="Left" Click="BackupBack_Click" />
+                        <Button Style="{StaticResource TextButton}" HorizontalAlignment="Left" Margin="4,0,0,0" Click="BackupBack_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <Path Data="M5 1L1 5l4 4" Width="6" Height="10" Stretch="Uniform" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" VerticalAlignment="Center" Margin="0,0,8,0"
+                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                <TextBlock Text="Назад" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
                         <Button x:Name="BackupGo" Style="{StaticResource PillButton}" HorizontalAlignment="Right" Click="BackupGo_Click" />
                     </Grid>
                 </StackPanel>

@@ -426,7 +426,7 @@ public partial class MainWindow : Window
             var c = _settings.Current;
             var server = _settings.Find(_selected);
             NameBox.Text = server?.Name ?? "";
-            ConfigBox.Text = server?.ConfigPath ?? "";
+            ConfigPath = server?.ConfigPath ?? "";
             PingBox.Text = server?.PingHost ?? "";
             AutoStartBox.IsChecked = c.AutoStart;
             MinimizedBox.IsChecked = c.StartMinimized;
@@ -461,12 +461,12 @@ public partial class MainWindow : Window
     private string _settingsSnapshot = "";
 
     private string SettingsState() => string.Join("\u001f",
-        NameBox.Text.Trim(), PingBox.Text.Trim(), ConfigBox.Text.Trim().Trim('"'),
+        NameBox.Text.Trim(), PingBox.Text.Trim(), ConfigPath,
         AutoStartBox.IsChecked, MinimizedBox.IsChecked, AutoConnectBox.IsChecked, FullTunnelSetting.IsChecked);
 
     private void WatchSettings()
     {
-        foreach (var box in new[] { NameBox, PingBox, ConfigBox })
+        foreach (var box in new[] { NameBox, PingBox })
             box.TextChanged += (_, _) => UpdateDirty();
         foreach (var cb in new[] { AutoStartBox, MinimizedBox, AutoConnectBox, FullTunnelSetting })
         {
@@ -492,9 +492,9 @@ public partial class MainWindow : Window
 
     private void Browse_Click(object sender, RoutedEventArgs e)
     {
-        if (PickConfig(ConfigBox.Text) is { } path)
+        if (PickConfig(ConfigPath) is { } path)
         {
-            ConfigBox.Text = path;
+            ConfigPath = path;
             NameBox.Text = SettingsService.TunnelNameOf(path); // другой файл — другое имя, переименовывать его не нужно
             ShowFullTunnel(path);
         }
@@ -514,6 +514,21 @@ public partial class MainWindow : Window
     {
         await _wg.DisconnectAsync(name);
         await _wg.ConnectAsync(name);
+    }
+
+    private string _configPath = "";
+
+    /// <summary>Путь к конфигу выбранного сервера; в строке настроек — только имя файла, полный путь в подсказке.</summary>
+    private string ConfigPath
+    {
+        get => _configPath;
+        set
+        {
+            _configPath = value.Trim().Trim('"');
+            ConfigName.Text = _configPath.Length == 0 ? "не выбран" : Path.GetFileName(_configPath);
+            ConfigRow.ToolTip = _configPath.Length == 0 ? null : _configPath;
+            UpdateDirty();
+        }
     }
 
     private string? PickConfig(string current)
@@ -536,7 +551,7 @@ public partial class MainWindow : Window
 
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
-        var path = ConfigBox.Text.Trim().Trim('"');
+        var path = ConfigPath;
         var host = PingBox.Text.Trim();
 
         string? error =

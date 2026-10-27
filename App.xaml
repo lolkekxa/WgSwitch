@@ -125,66 +125,6 @@
             </Setter>
         </Style>
 
-        <!-- ===== вторичная капсула: тонкая рамка ===== -->
-        <Style x:Key="GhostButton" TargetType="Button">
-            <Setter Property="Foreground" Value="{StaticResource Muted}" />
-            <Setter Property="FontFamily" Value="{StaticResource Sans}" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Height" Value="28" />
-            <Setter Property="Padding" Value="12,0" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Focusable" Value="False" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <!-- радиус с запасом: WPF ужимает его до половины высоты, капсула и при 28, и при 36 px -->
-                        <Border x:Name="bd" CornerRadius="18" BorderThickness="1" BorderBrush="{StaticResource Faint}" Background="Transparent">
-                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource Muted}" />
-                                <Setter Property="Foreground" Value="{StaticResource Fg}" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- ===== плитка-действие: иконка + подпись, как карточки на сайте; при наведении проявляется фон ===== -->
-        <Style x:Key="TileButton" TargetType="Button">
-            <Setter Property="Foreground" Value="{StaticResource Muted}" />
-            <Setter Property="FontFamily" Value="{StaticResource Sans}" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Height" Value="44" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Focusable" Value="False" />
-            <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
-            <Setter Property="RenderTransform"><Setter.Value><ScaleTransform /></Setter.Value></Setter>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="bd" CornerRadius="14" BorderThickness="1" BorderBrush="{StaticResource Line}" Background="Transparent">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource Faint}" />
-                                <Setter TargetName="bd" Property="Background" Value="{StaticResource Surface}" />
-                                <Setter Property="Foreground" Value="{StaticResource Fg}" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="RenderTransform">
-                                    <Setter.Value><ScaleTransform ScaleX="0.97" ScaleY="0.97" /></Setter.Value>
-                                </Setter>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <!-- ===== «Сделано в LKXA»: бейдж студии в цветах приложения; при наведении ✦ поворачивается, как на сайте ===== -->
         <Style x:Key="MadeBy" TargetType="Button">
             <Setter Property="Cursor" Value="Hand" />
@@ -259,155 +199,6 @@
             </Setter>
         </Style>
 
-        <!-- ===== поле ввода: только нижняя линия, при фокусе — светлее ===== -->
-        <Style x:Key="LineBox" TargetType="TextBox">
-            <Setter Property="Foreground" Value="{StaticResource Fg}" />
-            <Setter Property="CaretBrush" Value="{StaticResource Fg}" />
-            <!-- SelectionBrush ждёт кисть: Color здесь роняет приложение при первом выделении текста -->
-            <Setter Property="SelectionBrush" Value="{StaticResource Fg}" />
-            <Setter Property="SelectionOpacity" Value="0.25" />
-            <Setter Property="FontFamily" Value="{StaticResource Mono}" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Padding" Value="0,6,0,8" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TextBox">
-                        <Grid Background="Transparent">
-                            <ScrollViewer x:Name="PART_ContentHost" Padding="{TemplateBinding Padding}" VerticalAlignment="Center"
-                                          HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" />
-                            <Border Height="1" VerticalAlignment="Bottom" Background="{StaticResource Line}" />
-                            <Border x:Name="focusLine" Height="1" VerticalAlignment="Bottom" Background="{StaticResource Muted}" RenderTransformOrigin="0,0.5">
-                                <Border.RenderTransform><ScaleTransform ScaleX="0" /></Border.RenderTransform>
-                            </Border>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="focusLine" Storyboard.TargetProperty="RenderTransform.ScaleX" To="1" Duration="0:0:0.6" EasingFunction="{StaticResource Expo}" />
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.EnterActions>
-                                <Trigger.ExitActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="focusLine" Storyboard.TargetProperty="RenderTransform.ScaleX" To="0" Duration="0:0:0.4" EasingFunction="{StaticResource Expo}" />
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.ExitActions>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- то же поле для пароля -->
-        <Style x:Key="LinePass" TargetType="PasswordBox">
-            <Setter Property="Foreground" Value="{StaticResource Fg}" />
-            <Setter Property="CaretBrush" Value="{StaticResource Fg}" />
-            <!-- SelectionBrush ждёт кисть: Color здесь роняет приложение при первом выделении текста -->
-            <Setter Property="SelectionBrush" Value="{StaticResource Fg}" />
-            <Setter Property="SelectionOpacity" Value="0.25" />
-            <Setter Property="FontFamily" Value="{StaticResource Mono}" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Padding" Value="0,6,0,8" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="PasswordBox">
-                        <Grid Background="Transparent">
-                            <ScrollViewer x:Name="PART_ContentHost" Padding="{TemplateBinding Padding}" VerticalAlignment="Center"
-                                          HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" />
-                            <Border Height="1" VerticalAlignment="Bottom" Background="{StaticResource Line}" />
-                            <Border x:Name="focusLine" Height="1" VerticalAlignment="Bottom" Background="{StaticResource Muted}" RenderTransformOrigin="0,0.5">
-                                <Border.RenderTransform><ScaleTransform ScaleX="0" /></Border.RenderTransform>
-                            </Border>
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="focusLine" Storyboard.TargetProperty="RenderTransform.ScaleX" To="1" Duration="0:0:0.6" EasingFunction="{StaticResource Expo}" />
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.EnterActions>
-                                <Trigger.ExitActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="focusLine" Storyboard.TargetProperty="RenderTransform.ScaleX" To="0" Duration="0:0:0.4" EasingFunction="{StaticResource Expo}" />
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.ExitActions>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- ===== фирменный чекбокс: скруглённый квадрат, при отметке заливается, галочка появляется с масштабом ===== -->
-        <Style x:Key="BrandCheck" TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{StaticResource Muted}" />
-            <Setter Property="FontFamily" Value="{StaticResource Sans}" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Margin" Value="0,0,0,12" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="CheckBox">
-                        <Grid Background="Transparent">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Border x:Name="box" Width="18" Height="18" CornerRadius="5" BorderThickness="1"
-                                    BorderBrush="{StaticResource Faint}" Background="Transparent" VerticalAlignment="Center">
-                                <Path x:Name="tick" Data="M3,8.5 L6,11.5 L13,4.5" Width="11" Height="11" Stretch="Uniform"
-                                      Stroke="{StaticResource Bg}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
-                                      Opacity="0" RenderTransformOrigin="0.5,0.5">
-                                    <Path.RenderTransform><ScaleTransform ScaleX="0.5" ScaleY="0.5" /></Path.RenderTransform>
-                                </Path>
-                            </Border>
-                            <ContentPresenter Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" />
-                        </Grid>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource Muted}" />
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="box" Property="Background" Value="{StaticResource Fg}" />
-                                <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource Fg}" />
-                                <Setter Property="Foreground" Value="{StaticResource Fg}" />
-                                <Trigger.EnterActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="tick" Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.3" />
-                                            <DoubleAnimation Storyboard.TargetName="tick" Storyboard.TargetProperty="RenderTransform.ScaleX" To="1" Duration="0:0:0.3" EasingFunction="{StaticResource Expo}" />
-                                            <DoubleAnimation Storyboard.TargetName="tick" Storyboard.TargetProperty="RenderTransform.ScaleY" To="1" Duration="0:0:0.3" EasingFunction="{StaticResource Expo}" />
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.EnterActions>
-                                <Trigger.ExitActions>
-                                    <BeginStoryboard>
-                                        <Storyboard>
-                                            <DoubleAnimation Storyboard.TargetName="tick" Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.2" />
-                                            <DoubleAnimation Storyboard.TargetName="tick" Storyboard.TargetProperty="RenderTransform.ScaleX" To="0.5" Duration="0:0:0.3" />
-                                            <DoubleAnimation Storyboard.TargetName="tick" Storyboard.TargetProperty="RenderTransform.ScaleY" To="0.5" Duration="0:0:0.3" />
-                                        </Storyboard>
-                                    </BeginStoryboard>
-                                </Trigger.ExitActions>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter Property="Opacity" Value="0.35" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <!-- подпись секции: (01) Название -->
         <Style x:Key="Index" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="{StaticResource Mono}" />
@@ -465,6 +256,210 @@
                     <Setter Property="Opacity" Value="0.7" />
                 </Trigger>
             </Style.Triggers>
+        </Style>
+
+        <!-- ===== настройки: строки как в карточке главного экрана — подпись слева, значение справа ===== -->
+
+        <!-- тумблер: вся строка кликабельна; выключен — серый контур, включён — светлый трек и тёмная ручка -->
+        <Style x:Key="Toggle" TargetType="CheckBox">
+            <Setter Property="FontFamily" Value="{StaticResource Sans}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource Muted}" />
+            <Setter Property="MinHeight" Value="34" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ContentPresenter VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <Border x:Name="track" Grid.Column="1" Width="30" Height="18" CornerRadius="9" BorderThickness="1"
+                                    BorderBrush="{StaticResource Faint}" Background="Transparent" VerticalAlignment="Center">
+                                <Ellipse x:Name="knob" Width="12" Height="12" Margin="2,0,0,0" HorizontalAlignment="Left" Fill="{StaticResource Muted}">
+                                    <Ellipse.RenderTransform><TranslateTransform /></Ellipse.RenderTransform>
+                                </Ellipse>
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="track" Property="BorderBrush" Value="{StaticResource Muted}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="track" Property="Background" Value="{StaticResource Fg}" />
+                                <Setter TargetName="track" Property="BorderBrush" Value="{StaticResource Fg}" />
+                                <Setter TargetName="knob" Property="Fill" Value="{StaticResource Bg}" />
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="knob" Storyboard.TargetProperty="RenderTransform.X" To="12" Duration="0:0:0.35" EasingFunction="{StaticResource Expo}" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="knob" Storyboard.TargetProperty="RenderTransform.X" To="0" Duration="0:0:0.35" EasingFunction="{StaticResource Expo}" />
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- значение, которое правится прямо в строке: без рамок, при наведении и фокусе — лёгкая подложка -->
+        <Style x:Key="InlineBox" TargetType="TextBox">
+            <Setter Property="Foreground" Value="{StaticResource Fg}" />
+            <Setter Property="CaretBrush" Value="{StaticResource Fg}" />
+            <Setter Property="SelectionBrush" Value="{StaticResource Fg}" />
+            <Setter Property="SelectionOpacity" Value="0.25" />
+            <Setter Property="FontFamily" Value="{StaticResource Mono}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextAlignment" Value="Right" />
+            <Setter Property="MinWidth" Value="140" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="bd" CornerRadius="6" Padding="8,4" Margin="0,0,-8,0" Background="Transparent">
+                            <Grid>
+                                <TextBlock x:Name="ph" Text="{TemplateBinding Tag}" Foreground="{StaticResource Faint}" HorizontalAlignment="Right"
+                                           VerticalAlignment="Center" Margin="2,0" IsHitTestVisible="False" Visibility="Collapsed" />
+                                <ScrollViewer x:Name="PART_ContentHost" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" />
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="Text" Value="">
+                                <Setter TargetName="ph" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#141414" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#191919" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- пароль в строке: как InlineBox, но точки идут слева направо внутри поля фиксированной ширины -->
+        <Style x:Key="InlinePass" TargetType="PasswordBox">
+            <Setter Property="Foreground" Value="{StaticResource Fg}" />
+            <Setter Property="CaretBrush" Value="{StaticResource Fg}" />
+            <Setter Property="SelectionBrush" Value="{StaticResource Fg}" />
+            <Setter Property="SelectionOpacity" Value="0.25" />
+            <Setter Property="FontFamily" Value="{StaticResource Mono}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Width" Value="160" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PasswordBox">
+                        <Border x:Name="bd" CornerRadius="6" Padding="8,4" Margin="0,0,-8,0" Background="#111111">
+                            <ScrollViewer x:Name="PART_ContentHost" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#151515" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#191919" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- текстовая кнопка: «Назад», «Отмена», «Скопировать» — без рамки, при наведении светлеет -->
+        <Style x:Key="TextButton" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource Muted}" />
+            <Setter Property="FontFamily" Value="{StaticResource Sans}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Height" Value="36" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid Background="Transparent">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource Fg}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- подпись действия в строке: светлее обычной подписи — это выбор, а не справка -->
+        <Style x:Key="ActionLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource Sans}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{StaticResource Fg}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <!-- строка-действие: подпись слева, значение и › справа; при наведении всё светлеет -->
+        <Style x:Key="RowButton" TargetType="Button">
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid x:Name="row" Background="Transparent">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="row" Property="Opacity" Value="0.7" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- карточка настроек — та же, что карточка статуса на главном экране -->
+        <Style x:Key="SettingsCard" TargetType="Border">
+            <Setter Property="CornerRadius" Value="16" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="16,2" />
+            <Setter Property="Margin" Value="0,8,0,0" />
+        </Style>
+
+        <!-- шеврон › для строк-действий -->
+        <Style x:Key="Chevron" TargetType="Path">
+            <Setter Property="Data" Value="M1 1l4 4-4 4" />
+            <Setter Property="Width" Value="6" />
+            <Setter Property="Height" Value="10" />
+            <Setter Property="Stretch" Value="Uniform" />
+            <Setter Property="Stroke" Value="{StaticResource Muted}" />
+            <Setter Property="StrokeThickness" Value="1.5" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="Margin" Value="10,0,0,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
     </Application.Resources>
