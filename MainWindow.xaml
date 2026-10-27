@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:WgSwitch"
         Title="WgSwitch" Icon="Assets/app.ico"
-        Width="320" Height="548" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen"
+        Width="320" Height="548" ResizeMode="CanMinimize" WindowStartupLocation="Manual"
         Background="{StaticResource Bg}" Foreground="{StaticResource Fg}" FontFamily="{StaticResource Sans}"
         UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display">
 

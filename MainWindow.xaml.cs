@@ -39,6 +39,11 @@ public partial class MainWindow : Window
         _status = wg.StatusOf(_selected);
         InitializeComponent();
 
+        // как всплывающие окна трея: правый нижний угол рабочей области (над панелью задач, где бы она ни была)
+        var area = SystemParameters.WorkArea;
+        Left = area.Right - Width - 12;
+        Top = area.Bottom - Height - 12;
+
         // раз в секунду только «В сети» и «Handshake N с назад», и только пока туннель поднят и окно видно
         _clock = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (_, _) => RenderTimes(), Dispatcher) { IsEnabled = false };
 
