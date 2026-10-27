@@ -429,6 +429,7 @@ public partial class MainWindow : Window
             MinimizedBox.IsChecked = c.StartMinimized;
             AutoConnectBox.IsChecked = c.AutoConnect;
             MinimizedBox.IsEnabled = c.AutoStart;
+            ShowFullTunnel(server?.ConfigPath);
             SettingsError.Text = "";
             SettingsPanel.Visibility = Visibility.Visible;
             SettingsPanel.IsHitTestVisible = true;
@@ -460,7 +461,24 @@ public partial class MainWindow : Window
         {
             ConfigBox.Text = path;
             NameBox.Text = SettingsService.TunnelNameOf(path); // другой файл — другое имя, переименовывать его не нужно
+            ShowFullTunnel(path);
         }
+    }
+
+    private bool? _fullTunnelWas;   // режим в конфиге на момент открытия; null — конфиг не прочитать
+
+    private void ShowFullTunnel(string? configPath)
+    {
+        _fullTunnelWas = configPath is null ? null : ConfigFactory.IsFullTunnel(configPath);
+        FullTunnelSetting.IsChecked = _fullTunnelWas == true;
+        FullTunnelSetting.IsEnabled = _fullTunnelWas is not null;
+    }
+
+    /// <summary>Новые AllowedIPs WireGuard подхватывает только при запуске службы.</summary>
+    private async Task ReconnectAsync(string name)
+    {
+        await _wg.DisconnectAsync(name);
+        await _wg.ConnectAsync(name);
     }
 
     private string? PickConfig(string current)
@@ -524,6 +542,19 @@ public partial class MainWindow : Window
             return;
         }
 
+        // «весь интернет через VPN» живёт в самом конфиге; меняем его до переименования, пока путь прежний
+        bool fullChanged = FullTunnelSetting.IsEnabled && _fullTunnelWas is { } was && (FullTunnelSetting.IsChecked == true) != was;
+        if (fullChanged)
+        {
+            try { ConfigFactory.SetFullTunnel(path, FullTunnelSetting.IsChecked == true); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                ShowSettingsError("Не удалось изменить конфиг: " + ex.Message);
+                return;
+            }
+            _fullTunnelWas = FullTunnelSetting.IsChecked == true;
+        }
+
         string? renamedFrom = null;
         if (rename)
         {
@@ -568,6 +599,9 @@ public partial class MainWindow : Window
         RebuildChips();
         Render(_wg.StatusOf(name), animate: true);
         ShowSettings(false);
+
+        if (fullChanged && _wg.StatusOf(name).State != TunnelState.Off)
+            _ = ReconnectAsync(name);
     }
 
     private void ShowSettingsError(string text, bool ok = false)

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:WgSwitch"
         Title="WgSwitch" Icon="Assets/app.ico"
-        Width="320" Height="548" ResizeMode="CanMinimize" WindowStartupLocation="Manual"
+        Width="320" Height="572" ResizeMode="CanMinimize" WindowStartupLocation="Manual"
         Background="{StaticResource Bg}" Foreground="{StaticResource Fg}" FontFamily="{StaticResource Sans}"
         UseLayoutRounding="True" SnapsToDevicePixels="True" TextOptions.TextFormattingMode="Display">
 
@@ -209,6 +209,10 @@
                         <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="Обзор" Margin="10,0,0,0" Click="Browse_Click" />
                     </Grid>
 
+                    <!-- режим маршрутизации этого сервера; применяется только по «Сохранить» -->
+                    <CheckBox x:Name="FullTunnelSetting" Style="{StaticResource BrandCheck}" Content="Весь интернет через VPN" Margin="0,16,0,0" />
+                    <TextBlock x:Name="FullTunnelHint" Style="{StaticResource Hint}" Margin="30,4,0,0" Text="Нужен NAT на сервере, см. SERVER.md" />
+
                     <StackPanel Orientation="Horizontal" Margin="0,22,0,14">
                         <TextBlock Style="{StaticResource Index}" Text="(02)" /><TextBlock Style="{StaticResource Label}" Text="Запуск" />
                     </StackPanel>
@@ -239,7 +243,7 @@
                         </Button>
                     </Grid>
 
-                    <Button Style="{StaticResource MadeBy}" HorizontalAlignment="Center" Margin="0,22,0,0" Click="MadeBy_Click" />
+                    <Button Style="{StaticResource MadeBy}" HorizontalAlignment="Center" Margin="0,16,0,0" Click="MadeBy_Click" />
                 </StackPanel>
 
                 <Grid Grid.Row="1">

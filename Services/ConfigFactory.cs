@@ -110,11 +110,11 @@ public static class ConfigFactory
             .AppendLine("[Interface]")
             .AppendLine($"PrivateKey = {privateKey}")
             .AppendLine($"Address = {r.ClientIp}/32");
-        if (r.FullTunnel) conf.AppendLine("DNS = 1.1.1.1, 1.0.0.1");
+        if (r.FullTunnel) conf.AppendLine(FullDns);
         conf.AppendLine()
             .AppendLine("[Peer]")
             .AppendLine($"PublicKey = {r.ServerPublicKey}")
-            .AppendLine($"AllowedIPs = {(r.FullTunnel ? "0.0.0.0/0, ::/0" : subnet)}")
+            .AppendLine($"AllowedIPs = {(r.FullTunnel ? FullRoutes : subnet)}")
             .AppendLine($"Endpoint = {r.Endpoint}")
             .AppendLine("PersistentKeepalive = 25");
 
@@ -131,6 +131,95 @@ public static class ConfigFactory
 
         var peer = $"[Peer]\nPublicKey = {publicKey}\nAllowedIPs = {r.ClientIp}/32";
         return new Result(r.Name, path, serverIp, $"{serverIp}/24", peer);
+    }
+
+    // ---------- весь трафик через VPN: переключение в готовом конфиге ----------
+
+    private const string FullRoutes = "0.0.0.0/0, ::/0";
+    private const string FullDns = "DNS = 1.1.1.1, 1.0.0.1";
+
+    /// <summary>Идёт ли весь трафик через туннель. null — конфиг не прочитать. Смотрим только на AllowedIPs.</summary>
+    public static bool? IsFullTunnel(string configPath)
+    {
+        try
+        {
+            return File.ReadLines(configPath.Trim().Trim('"'))
+                .Select(Parse)
+                .Any(kv => kv.Key == "allowedips" && kv.Value.Split(',').Any(v => v.Trim() == "0.0.0.0/0"));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Переключить режим в конфиге: AllowedIPs у [Peer] — «весь трафик» или подсеть сервера (/24 из Address),
+    /// плюс наш DNS для полного режима. Остальные строки (ключи, Endpoint, свой DNS) не трогаем.
+    /// </summary>
+    public static void SetFullTunnel(string configPath, bool full)
+    {
+        var path = configPath.Trim().Trim('"');
+        var lines = File.ReadAllLines(path).ToList();
+
+        string? subnet = null;
+        int addressAt = -1, ourDnsAt = -1;
+        bool hasDns = false;
+        string section = "";
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var t = lines[i].Trim();
+            if (t.StartsWith('[')) { section = t.ToLowerInvariant(); continue; }
+            var (key, value) = Parse(lines[i]);
+            if (section != "[interface]") continue;
+            if (key == "address")
+            {
+                addressAt = i;
+                var v4 = value.Split(',').Select(a => a.Trim().Split('/')[0])
+                    .FirstOrDefault(a => IPAddress.TryParse(a, out var ip) && ip.AddressFamily == AddressFamily.InterNetwork);
+                if (v4 is not null)
+                {
+                    var b = IPAddress.Parse(v4).GetAddressBytes();
+                    subnet = $"{b[0]}.{b[1]}.{b[2]}.0/24";
+                }
+            }
+            else if (key == "dns")
+            {
+                hasDns = true;
+                if (Normalize(lines[i]) == Normalize(FullDns)) ourDnsAt = i;
+            }
+        }
+        if (!full && subnet is null) throw new InvalidOperationException("В конфиге нет IPv4-адреса в Address");
+
+        section = "";
+        bool changed = false;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var t = lines[i].Trim();
+            if (t.StartsWith('[')) { section = t.ToLowerInvariant(); continue; }
+            if (section == "[peer]" && Parse(lines[i]).Key == "allowedips")
+            {
+                lines[i] = $"AllowedIPs = {(full ? FullRoutes : subnet)}";
+                changed = true;
+            }
+        }
+        if (!changed) throw new InvalidOperationException("В конфиге нет AllowedIPs у [Peer]");
+
+        // DNS: в полном режиме без своего DNS резолвер нужен внутри туннеля; при выходе убираем только свой
+        if (full && !hasDns && addressAt >= 0) lines.Insert(addressAt + 1, FullDns);
+        if (!full && ourDnsAt >= 0) lines.RemoveAt(ourDnsAt);
+
+        var tmp = path + ".tmp";
+        File.WriteAllLines(tmp, lines, new UTF8Encoding(false));
+        File.Move(tmp, path, overwrite: true);
+
+        static string Normalize(string s) => string.Concat(s.Where(c => !char.IsWhiteSpace(c))).ToLowerInvariant();
+    }
+
+    private static (string Key, string Value) Parse(string line)
+    {
+        int eq = line.IndexOf('=');
+        return eq < 0 ? ("", "") : (line[..eq].Trim().ToLowerInvariant(), line[(eq + 1)..].Trim());
     }
 
     /// <summary>Папка с конфигом: только Администраторы и SYSTEM (служба WireGuard работает от SYSTEM).</summary>
