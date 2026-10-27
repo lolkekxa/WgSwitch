@@ -38,6 +38,7 @@ public partial class MainWindow : Window
         _selected = settings.SelectedName;
         _status = wg.StatusOf(_selected);
         InitializeComponent();
+        WatchSettings();
 
         // как всплывающие окна трея: правый нижний угол рабочей области (над панелью задач, где бы она ни была)
         var area = SystemParameters.WorkArea;
@@ -128,11 +129,10 @@ public partial class MainWindow : Window
         // кнопка: заливка снизу вверх, цвет иконки, свечение
         Animate(FillShift, TranslateTransform.YProperty, filled ? 0 : 148, 700 * ms);
         if (filled) AnimateColor(FillBrush, s.State == TunnelState.NoResponse ? Red : Green, 300 * ms);
-        AnimateColor(IconBrush, filled ? Bg : accent, 300 * ms);
-        Animate(Glow, OpacityProperty, s.State == TunnelState.Connected ? 1 : s.State == TunnelState.NoResponse ? 0.6 : 0, 900 * ms);
+        AnimateColor(IconBrush, accent, 300 * ms);
+        AnimateColor(RingBrush, s.State == TunnelState.NoResponse ? Red : Green, 300 * ms);
+        Animate(StateRing, OpacityProperty, filled && !disconnecting ? 1 : 0, 500 * ms);
         var glow = s.State == TunnelState.NoResponse ? Red : Green;
-        GlowStop.Color = Color.FromArgb(0x40, glow.R, glow.G, glow.B);
-        GlowEdge.Color = Color.FromArgb(0x00, glow.R, glow.G, glow.B);
         RippleBrush.Color = glow;
 
         Animate(Spinner, OpacityProperty, spinning ? 1 : 0, 250 * ms);
@@ -192,7 +192,6 @@ public partial class MainWindow : Window
     {
         bool up = s.State is TunnelState.Connected or TunnelState.NoResponse;
 
-        Set(ServerValue, PingHost, true);
         Set(PingValue, s.PingMs is { } p ? $"{p} мс" : up ? "нет ответа" : "—", s.PingMs is not null);
         if (up && s.PingMs is null && !IsCopied(PingValue)) PingValue.Foreground = new SolidColorBrush(Red);
         Set(TrafficValue, s.RxBytes is { } rx && s.TxBytes is { } tx ? $"↓ {Bytes(rx)}  ↑ {Bytes(tx)}" : "—", s.RxBytes is not null);
@@ -220,12 +219,12 @@ public partial class MainWindow : Window
 
     private bool IsCopied(TextBlock tb) => _copied.ContainsKey(tb);
 
-    /// <summary>IP копируется чистым (и из карточки, и из строки под статусом), остальное — как на экране.</summary>
+    /// <summary>IP из строки под статусом копируется чистым, без имени туннеля; остальное — как на экране.</summary>
     private void CopyValue_MouseUp(object sender, MouseButtonEventArgs e)
     {
         var tb = (TextBlock)sender;
         if (IsCopied(tb)) return;
-        var text = tb == ServerValue || tb == SubText ? PingHost : tb.Text;
+        var text = tb == SubText ? PingHost : tb.Text;
         if (string.IsNullOrWhiteSpace(text) || text == "—") return;
         try { Clipboard.SetText(text); }
         catch (System.Runtime.InteropServices.COMException) { return; } // буфер занят другим приложением
@@ -270,13 +269,17 @@ public partial class MainWindow : Window
         : b < 1024L * 1024 * 1024 ? $"{b / 1048576.0:0.#} МБ"
         : $"{b / 1073741824.0:0.##} ГБ";
 
-    // ---------- «пульс»: на каждый успешный пинг — расходящееся кольцо ----------
+    // ---------- «пульс»: успешный пинг — тонкое расходящееся кольцо, не чаще раза в 6 с ----------
+
+    private DateTime _lastPulse;
 
     private void OnHeartbeat(string name)
     {
         if (!Same(name, _selected) || WindowState == WindowState.Minimized || _settingsOpen || _onboarding) return;
-        Ripple.BeginAnimation(OpacityProperty, new DoubleAnimation(0.5, 0, TimeSpan.FromMilliseconds(1100)));
-        var grow = new DoubleAnimation(1, 1.2, TimeSpan.FromMilliseconds(1100)) { EasingFunction = Expo };
+        if (DateTime.Now - _lastPulse < TimeSpan.FromSeconds(6)) return;
+        _lastPulse = DateTime.Now;
+        Ripple.BeginAnimation(OpacityProperty, new DoubleAnimation(0.35, 0, TimeSpan.FromMilliseconds(1400)));
+        var grow = new DoubleAnimation(1, 1.12, TimeSpan.FromMilliseconds(1400)) { EasingFunction = Expo };
         RippleScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
         RippleScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
     }
@@ -431,6 +434,10 @@ public partial class MainWindow : Window
             MinimizedBox.IsEnabled = c.AutoStart;
             ShowFullTunnel(server?.ConfigPath);
             SettingsError.Text = "";
+            _settingsSnapshot = SettingsState();
+            SaveButton.BeginAnimation(OpacityProperty, null);
+            SaveButton.Opacity = 0;
+            SaveButton.IsHitTestVisible = false;
             SettingsPanel.Visibility = Visibility.Visible;
             SettingsPanel.IsHitTestVisible = true;
         }
@@ -447,6 +454,34 @@ public partial class MainWindow : Window
         GearButton.Foreground = new SolidColorBrush(open ? Fg : Muted);
 
         SetTitle(open ? "Настройки" : "WgSwitch");
+    }
+
+    // ---------- «Сохранить» появляется, только когда в настройках что-то поменяли ----------
+
+    private string _settingsSnapshot = "";
+
+    private string SettingsState() => string.Join("\u001f",
+        NameBox.Text.Trim(), PingBox.Text.Trim(), ConfigBox.Text.Trim().Trim('"'),
+        AutoStartBox.IsChecked, MinimizedBox.IsChecked, AutoConnectBox.IsChecked, FullTunnelSetting.IsChecked);
+
+    private void WatchSettings()
+    {
+        foreach (var box in new[] { NameBox, PingBox, ConfigBox })
+            box.TextChanged += (_, _) => UpdateDirty();
+        foreach (var cb in new[] { AutoStartBox, MinimizedBox, AutoConnectBox, FullTunnelSetting })
+        {
+            cb.Checked += (_, _) => UpdateDirty();
+            cb.Unchecked += (_, _) => UpdateDirty();
+        }
+    }
+
+    private void UpdateDirty()
+    {
+        if (!_settingsOpen) return;
+        bool dirty = SettingsState() != _settingsSnapshot;
+        if (dirty == SaveButton.IsHitTestVisible) return;
+        SaveButton.IsHitTestVisible = dirty;
+        Animate(SaveButton, OpacityProperty, dirty ? 1 : 0, dirty ? 300 : 200);
     }
 
     private void AutoStart_Changed(object sender, RoutedEventArgs e)

@@ -50,116 +50,104 @@
         <Grid Grid.Row="1" ClipToBounds="True">
 
             <!-- ===================== главный экран ===================== -->
-            <Grid x:Name="MainPanel" Margin="16,4,16,16">
+            <Grid x:Name="MainPanel" Margin="16,0,16,16">
                 <Grid.RenderTransform><TranslateTransform x:Name="MainShift" /></Grid.RenderTransform>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="*" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
 
-                <!-- серверы: капсулы с точкой состояния, видны только когда серверов больше одного -->
-                <ScrollViewer x:Name="ChipsHost" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
-                              Margin="0,0,0,6" Visibility="Collapsed" Focusable="False">
-                    <StackPanel x:Name="ServerChips" Orientation="Horizontal" HorizontalAlignment="Center" />
-                </ScrollViewer>
+                <!-- всё на сетке 8 px и по центру; место под сообщение зарезервировано, чтобы ошибка не двигала карточку -->
+                <StackPanel VerticalAlignment="Center">
 
-                <!-- большая кнопка: круг, при подключении снизу «наливается» цветом -->
-                <Grid Grid.Row="1" Width="180" Height="180" HorizontalAlignment="Center">
-                    <Ellipse x:Name="Glow" Opacity="0" IsHitTestVisible="False">
-                        <Ellipse.Fill>
-                            <RadialGradientBrush>
-                                <GradientStop x:Name="GlowStop" Color="#4022C55E" Offset="0.55" />
-                                <GradientStop x:Name="GlowEdge" Color="#0022C55E" Offset="1" />
-                            </RadialGradientBrush>
-                        </Ellipse.Fill>
-                    </Ellipse>
-                    <Ellipse x:Name="Ripple" Width="148" Height="148" StrokeThickness="1"
-                             Opacity="0" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
-                        <Ellipse.Stroke><SolidColorBrush x:Name="RippleBrush" Color="{StaticResource GreenColor}" /></Ellipse.Stroke>
-                        <Ellipse.RenderTransform><ScaleTransform x:Name="RippleScale" /></Ellipse.RenderTransform>
-                    </Ellipse>
+                    <!-- серверы: капсулы с точкой состояния, видны только когда серверов больше одного -->
+                    <ScrollViewer x:Name="ChipsHost" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                                  Margin="0,0,0,16" Visibility="Collapsed" Focusable="False">
+                        <StackPanel x:Name="ServerChips" Orientation="Horizontal" HorizontalAlignment="Center" />
+                    </ScrollViewer>
 
-                    <Button x:Name="PowerButton" Width="148" Height="148" Cursor="Hand" Click="Power_Click"
-                            FocusVisualStyle="{x:Null}" RenderTransformOrigin="0.5,0.5">
-                        <Button.RenderTransform><ScaleTransform x:Name="PowerScale" /></Button.RenderTransform>
-                        <Button.Template>
-                            <ControlTemplate TargetType="Button">
-                                <Border CornerRadius="74" Background="Transparent">
-                                    <ContentPresenter />
-                                </Border>
-                            </ControlTemplate>
-                        </Button.Template>
-                        <Grid>
-                            <Ellipse Fill="{StaticResource Surface}" Stroke="{StaticResource Line}" StrokeThickness="1" />
-                            <Grid IsHitTestVisible="False">
-                                <Grid.Clip><EllipseGeometry Center="74,74" RadiusX="74" RadiusY="74" /></Grid.Clip>
-                                <Rectangle>
-                                    <Rectangle.Fill><SolidColorBrush x:Name="FillBrush" Color="{StaticResource GreenColor}" /></Rectangle.Fill>
-                                    <Rectangle.RenderTransform><TranslateTransform x:Name="FillShift" Y="148" /></Rectangle.RenderTransform>
-                                </Rectangle>
+                    <!-- кнопка: тёмный диск; состояние — тонкое кольцо, цвет иконки и еле заметная заливка снизу -->
+                    <Grid Width="168" Height="168" HorizontalAlignment="Center">
+                        <Ellipse x:Name="Ripple" Width="148" Height="148" StrokeThickness="1"
+                                 Opacity="0" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                            <Ellipse.Stroke><SolidColorBrush x:Name="RippleBrush" Color="{StaticResource GreenColor}" /></Ellipse.Stroke>
+                            <Ellipse.RenderTransform><ScaleTransform x:Name="RippleScale" /></Ellipse.RenderTransform>
+                        </Ellipse>
+
+                        <Button x:Name="PowerButton" Width="148" Height="148" Cursor="Hand" Click="Power_Click"
+                                FocusVisualStyle="{x:Null}" RenderTransformOrigin="0.5,0.5">
+                            <Button.RenderTransform><ScaleTransform x:Name="PowerScale" /></Button.RenderTransform>
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border CornerRadius="74" Background="Transparent">
+                                        <ContentPresenter />
+                                    </Border>
+                                </ControlTemplate>
+                            </Button.Template>
+                            <Grid>
+                                <Ellipse Fill="{StaticResource Surface}" Stroke="{StaticResource Line}" StrokeThickness="1" />
+                                <Grid IsHitTestVisible="False" Opacity="0.08">
+                                    <Grid.Clip><EllipseGeometry Center="74,74" RadiusX="74" RadiusY="74" /></Grid.Clip>
+                                    <Rectangle>
+                                        <Rectangle.Fill><SolidColorBrush x:Name="FillBrush" Color="{StaticResource GreenColor}" /></Rectangle.Fill>
+                                        <Rectangle.RenderTransform><TranslateTransform x:Name="FillShift" Y="148" /></Rectangle.RenderTransform>
+                                    </Rectangle>
+                                </Grid>
+                                <Ellipse x:Name="StateRing" Margin="0.75" StrokeThickness="1.5" Opacity="0" IsHitTestVisible="False">
+                                    <Ellipse.Stroke><SolidColorBrush x:Name="RingBrush" Color="{StaticResource GreenColor}" /></Ellipse.Stroke>
+                                </Ellipse>
+                                <Path x:Name="Spinner" Data="M74,0.75 A73.25,73.25 0 0 1 147.25,74" Stroke="{StaticResource Amber}" StrokeThickness="1.5"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5"
+                                      Width="148" Height="148" Stretch="None">
+                                    <Path.RenderTransform><RotateTransform x:Name="SpinnerTurn" /></Path.RenderTransform>
+                                </Path>
+                                <Path Width="36" Height="36" Stretch="Uniform" StrokeThickness="1.5"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" IsHitTestVisible="False"
+                                      Data="M12 2v10 M18.4 6.6a9 9 0 1 1-12.77.04">
+                                    <Path.Stroke><SolidColorBrush x:Name="IconBrush" Color="{StaticResource MutedColor}" /></Path.Stroke>
+                                </Path>
                             </Grid>
-                            <Path x:Name="Spinner" Data="M74,0.75 A73.25,73.25 0 0 1 147.25,74" Stroke="{StaticResource Amber}" StrokeThickness="1.5"
-                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5"
-                                  Width="148" Height="148" Stretch="None">
-                                <Path.RenderTransform><RotateTransform x:Name="SpinnerTurn" /></Path.RenderTransform>
-                            </Path>
-                            <Path Width="40" Height="40" Stretch="Uniform" StrokeThickness="1.5"
-                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" IsHitTestVisible="False"
-                                  Data="M12 2v10 M18.4 6.6a9 9 0 1 1-12.77.04">
-                                <Path.Stroke><SolidColorBrush x:Name="IconBrush" Color="{StaticResource MutedColor}" /></Path.Stroke>
-                            </Path>
+                        </Button>
+                    </Grid>
+
+                    <!-- состояние: точка + крупная подпись, которая «перекатывается» при смене -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0">
+                        <Grid Width="8" Height="8" VerticalAlignment="Center" Margin="0,2,10,0">
+                            <Ellipse x:Name="DotPing" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                                <Ellipse.Fill><SolidColorBrush x:Name="DotPingBrush" Color="{StaticResource AmberColor}" /></Ellipse.Fill>
+                                <Ellipse.RenderTransform><ScaleTransform x:Name="DotPingScale" /></Ellipse.RenderTransform>
+                            </Ellipse>
+                            <Ellipse>
+                                <Ellipse.Fill><SolidColorBrush x:Name="DotBrush" Color="{StaticResource MutedColor}" /></Ellipse.Fill>
+                                <Ellipse.Effect><DropShadowEffect x:Name="DotGlow" ShadowDepth="0" BlurRadius="8" Opacity="0" Color="{StaticResource MutedColor}" /></Ellipse.Effect>
+                            </Ellipse>
                         </Grid>
-                    </Button>
-                </Grid>
+                        <TextBlock x:Name="StateText" Text="Выключено" FontSize="22" FontWeight="Medium" TextOptions.TextFormattingMode="Ideal">
+                            <TextBlock.RenderTransform><TranslateTransform x:Name="StateShift" /></TextBlock.RenderTransform>
+                        </TextBlock>
+                    </StackPanel>
 
-                <!-- состояние: светящаяся точка + крупная подпись, которая «перекатывается» при смене -->
-                <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
-                    <Grid Width="8" Height="8" VerticalAlignment="Center" Margin="0,2,10,0">
-                        <Ellipse x:Name="DotPing" Opacity="0" RenderTransformOrigin="0.5,0.5">
-                            <Ellipse.Fill><SolidColorBrush x:Name="DotPingBrush" Color="{StaticResource AmberColor}" /></Ellipse.Fill>
-                            <Ellipse.RenderTransform><ScaleTransform x:Name="DotPingScale" /></Ellipse.RenderTransform>
-                        </Ellipse>
-                        <Ellipse>
-                            <Ellipse.Fill><SolidColorBrush x:Name="DotBrush" Color="{StaticResource MutedColor}" /></Ellipse.Fill>
-                            <Ellipse.Effect><DropShadowEffect x:Name="DotGlow" ShadowDepth="0" BlurRadius="8" Opacity="0" Color="{StaticResource MutedColor}" /></Ellipse.Effect>
-                        </Ellipse>
-                    </Grid>
-                    <TextBlock x:Name="StateText" Text="Выключено" FontSize="22" FontWeight="Medium" TextOptions.TextFormattingMode="Ideal">
-                        <TextBlock.RenderTransform><TranslateTransform x:Name="StateShift" /></TextBlock.RenderTransform>
-                    </TextBlock>
+                    <TextBlock x:Name="SubText" HorizontalAlignment="Center" Margin="0,8,0,0" Style="{StaticResource CopyHover}" MouseLeftButtonUp="CopyValue_MouseUp"
+                               FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource Muted}" Text="wg0 · 10.8.0.1" />
+
+                    <!-- короткое сообщение: ошибка, подсказка, ссылка на установку; две строки зарезервированы -->
+                    <TextBlock x:Name="MessageText" Margin="8,16,8,0" MinHeight="34" HorizontalAlignment="Center"
+                               TextAlignment="Center" TextWrapping="Wrap" FontSize="12" LineHeight="17" Foreground="{StaticResource Red}" Opacity="0" />
+
+                    <!-- карточка статуса: IP уже есть под статусом, здесь только то, что меняется -->
+                    <Border Margin="0,16,0,0" CornerRadius="16" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="16,8">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="26" /><RowDefinition Height="26" /><RowDefinition Height="26" /><RowDefinition Height="26" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="01" /><TextBlock Style="{StaticResource Label}" Text="Пинг" /></StackPanel>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="02" /><TextBlock Style="{StaticResource Label}" Text="В сети" /></StackPanel>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="03" /><TextBlock Style="{StaticResource Label}" Text="Handshake" /></StackPanel>
+                            <StackPanel Grid.Row="3" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="04" /><TextBlock Style="{StaticResource Label}" Text="Трафик" /></StackPanel>
+
+                            <TextBlock x:Name="PingValue" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                            <TextBlock x:Name="UptimeValue" Grid.Row="1" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                            <TextBlock x:Name="HandshakeValue" Grid.Row="2" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                            <TextBlock x:Name="TrafficValue" Grid.Row="3" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                        </Grid>
+                    </Border>
                 </StackPanel>
-
-                <TextBlock x:Name="SubText" Grid.Row="3" HorizontalAlignment="Center" Margin="0,6,0,0" Style="{StaticResource CopyHover}" MouseLeftButtonUp="CopyValue_MouseUp"
-                           FontFamily="{StaticResource Mono}" FontSize="12" Foreground="{StaticResource Muted}" Text="wg0 · 10.8.0.1" />
-
-                <!-- короткое сообщение: ошибка, подсказка, ссылка на установку -->
-                <TextBlock x:Name="MessageText" Grid.Row="4" Margin="8,10,8,0" HorizontalAlignment="Center" VerticalAlignment="Top"
-                           TextAlignment="Center" TextWrapping="Wrap" FontSize="12" LineHeight="17" Foreground="{StaticResource Red}" Opacity="0" />
-
-                <!-- карточка статуса -->
-                <Border Grid.Row="5" CornerRadius="16" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="16,9">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="26" /><RowDefinition Height="26" /><RowDefinition Height="26" />
-                            <RowDefinition Height="26" /><RowDefinition Height="26" />
-                        </Grid.RowDefinitions>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="01" /><TextBlock Style="{StaticResource Label}" Text="Сервер" /></StackPanel>
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="02" /><TextBlock Style="{StaticResource Label}" Text="Пинг" /></StackPanel>
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="03" /><TextBlock Style="{StaticResource Label}" Text="В сети" /></StackPanel>
-                        <StackPanel Grid.Row="3" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="04" /><TextBlock Style="{StaticResource Label}" Text="Handshake" /></StackPanel>
-                        <StackPanel Grid.Row="4" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="05" /><TextBlock Style="{StaticResource Label}" Text="Трафик" /></StackPanel>
-
-                        <TextBlock x:Name="ServerValue" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
-                        <TextBlock x:Name="PingValue" Grid.Row="1" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
-                        <TextBlock x:Name="UptimeValue" Grid.Row="2" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
-                        <TextBlock x:Name="HandshakeValue" Grid.Row="3" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
-                        <TextBlock x:Name="TrafficValue" Grid.Row="4" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
-                    </Grid>
-                </Border>
             </Grid>
 
             <!-- ===================== настройки (выезжают справа) ===================== -->
@@ -249,7 +237,8 @@
                 <Grid Grid.Row="1">
                     <TextBlock x:Name="SettingsError" FontSize="12" Foreground="{StaticResource Red}" TextWrapping="Wrap"
                                VerticalAlignment="Center" Margin="0,0,12,0" MaxWidth="150" HorizontalAlignment="Left" />
-                    <Button Style="{StaticResource PillButton}" Content="Сохранить" HorizontalAlignment="Right" Click="Save_Click" />
+                    <Button x:Name="SaveButton" Style="{StaticResource PillButton}" Content="Сохранить" HorizontalAlignment="Right" Click="Save_Click"
+                            Opacity="0" IsHitTestVisible="False" />
                 </Grid>
             </Grid>
 

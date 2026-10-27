@@ -91,7 +91,7 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="bd" CornerRadius="18" Background="{StaticResource Fg}">
                             <Grid local:Ui.Round="18">
-                                <Border x:Name="sweep" Background="{StaticResource Green}">
+                                <Border x:Name="sweep" Background="#D4D4D4">
                                     <Border.RenderTransform><TranslateTransform Y="36" /></Border.RenderTransform>
                                 </Border>
                                 <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -259,13 +259,13 @@
             </Setter>
         </Style>
 
-        <!-- ===== поле ввода: только нижняя линия, при фокусе — фиолетовая ===== -->
+        <!-- ===== поле ввода: только нижняя линия, при фокусе — светлее ===== -->
         <Style x:Key="LineBox" TargetType="TextBox">
             <Setter Property="Foreground" Value="{StaticResource Fg}" />
             <Setter Property="CaretBrush" Value="{StaticResource Fg}" />
             <!-- SelectionBrush ждёт кисть: Color здесь роняет приложение при первом выделении текста -->
-            <Setter Property="SelectionBrush" Value="{StaticResource Violet}" />
-            <Setter Property="SelectionOpacity" Value="0.45" />
+            <Setter Property="SelectionBrush" Value="{StaticResource Fg}" />
+            <Setter Property="SelectionOpacity" Value="0.25" />
             <Setter Property="FontFamily" Value="{StaticResource Mono}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Padding" Value="0,6,0,8" />
@@ -276,7 +276,7 @@
                             <ScrollViewer x:Name="PART_ContentHost" Padding="{TemplateBinding Padding}" VerticalAlignment="Center"
                                           HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" />
                             <Border Height="1" VerticalAlignment="Bottom" Background="{StaticResource Line}" />
-                            <Border x:Name="focusLine" Height="1" VerticalAlignment="Bottom" Background="#8B5CF6" RenderTransformOrigin="0,0.5">
+                            <Border x:Name="focusLine" Height="1" VerticalAlignment="Bottom" Background="{StaticResource Muted}" RenderTransformOrigin="0,0.5">
                                 <Border.RenderTransform><ScaleTransform ScaleX="0" /></Border.RenderTransform>
                             </Border>
                         </Grid>
@@ -308,8 +308,8 @@
             <Setter Property="Foreground" Value="{StaticResource Fg}" />
             <Setter Property="CaretBrush" Value="{StaticResource Fg}" />
             <!-- SelectionBrush ждёт кисть: Color здесь роняет приложение при первом выделении текста -->
-            <Setter Property="SelectionBrush" Value="{StaticResource Violet}" />
-            <Setter Property="SelectionOpacity" Value="0.45" />
+            <Setter Property="SelectionBrush" Value="{StaticResource Fg}" />
+            <Setter Property="SelectionOpacity" Value="0.25" />
             <Setter Property="FontFamily" Value="{StaticResource Mono}" />
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Padding" Value="0,6,0,8" />
@@ -320,7 +320,7 @@
                             <ScrollViewer x:Name="PART_ContentHost" Padding="{TemplateBinding Padding}" VerticalAlignment="Center"
                                           HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" />
                             <Border Height="1" VerticalAlignment="Bottom" Background="{StaticResource Line}" />
-                            <Border x:Name="focusLine" Height="1" VerticalAlignment="Bottom" Background="#8B5CF6" RenderTransformOrigin="0,0.5">
+                            <Border x:Name="focusLine" Height="1" VerticalAlignment="Bottom" Background="{StaticResource Muted}" RenderTransformOrigin="0,0.5">
                                 <Border.RenderTransform><ScaleTransform ScaleX="0" /></Border.RenderTransform>
                             </Border>
                         </Grid>
@@ -377,8 +377,8 @@
                                 <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource Muted}" />
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="box" Property="Background" Value="{StaticResource Green}" />
-                                <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource Green}" />
+                                <Setter TargetName="box" Property="Background" Value="{StaticResource Fg}" />
+                                <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource Fg}" />
                                 <Setter Property="Foreground" Value="{StaticResource Fg}" />
                                 <Trigger.EnterActions>
                                     <BeginStoryboard>
