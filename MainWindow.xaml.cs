@@ -406,8 +406,6 @@ public partial class MainWindow : Window
     /// <summary>Свернуть = убрать в трей: свёрнутое окно не висит в панели задач и в Alt+Tab с пустым превью.</summary>
     private void Minimize_Click(object sender, RoutedEventArgs e) => Close();
 
-    /// <summary>Крестик не завершает приложение: окно уничтожается, остаётся иконка в трее.</summary>
-    private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     private void OnKey(object sender, KeyEventArgs e)
     {

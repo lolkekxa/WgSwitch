@@ -41,9 +41,6 @@
                 <Button Style="{StaticResource IconButton}" WindowChrome.IsHitTestVisibleInChrome="True" Click="Minimize_Click" ToolTip="Свернуть в трей" Margin="2,0,0,0">
                     <Path Style="{StaticResource Glyph}" Data="M5 12h14" Height="2" />
                 </Button>
-                <Button Style="{StaticResource IconButton}" WindowChrome.IsHitTestVisibleInChrome="True" Click="Close_Click" ToolTip="Свернуть в трей" Margin="2,0,0,0">
-                    <Path Style="{StaticResource Glyph}" Data="M18 6 6 18M6 6l12 12" Width="12" Height="12" />
-                </Button>
             </StackPanel>
         </Grid>
 
