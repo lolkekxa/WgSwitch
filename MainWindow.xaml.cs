@@ -14,7 +14,7 @@ namespace WgSwitch;
 public partial class MainWindow : Window
 {
     private static readonly Color Green = Rgb(0x22C55E), Red = Rgb(0xEF4444), Amber = Rgb(0xF59E0B),
-        Muted = Rgb(0x7A7A7A), Faint = Rgb(0x3A3A3A), Fg = Rgb(0xEDEDED), Bg = Rgb(0x0A0A0A);
+        Muted = Rgb(0x7A7A7A), Faint = Rgb(0x3A3A3A), Fg = Rgb(0xEDEDED);
 
     private static readonly IEasingFunction Expo = new ExponentialEase { EasingMode = EasingMode.EaseOut, Exponent = 6 };
 
@@ -443,6 +443,8 @@ public partial class MainWindow : Window
         }
 
         MainPanel.IsHitTestVisible = !open;
+        // уходящая панель лежит поверх главного экрана до конца анимации — клики ловить ей уже нельзя
+        SettingsPanel.IsHitTestVisible = open;
         Animate(MainPanel, OpacityProperty, open ? 0 : 1, 300);
         Animate(MainShift, TranslateTransform.XProperty, open ? -24 : 0, 500);
         Animate(SettingsPanel, OpacityProperty, open ? 1 : 0, open ? 400 : 200);
