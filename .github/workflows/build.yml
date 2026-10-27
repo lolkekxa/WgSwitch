@@ -23,13 +23,33 @@ jobs:
       - name: Publish (single file, needs .NET 8 Desktop Runtime)
         run: dotnet publish WgSwitch.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o out
 
+      # артефакты делят квоту хранилища со всем аккаунтом — если она кончилась, сборку это не валит
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: WgSwitch
           path: out/WgSwitch.exe
-          if-no-files-found: error
+          retention-days: 3
 
-      # тег вида v1.2.0 — ещё и релиз с exe
+      # главное место для exe — релизы: они в квоту артефактов не входят.
+      # Каждый пуш в main обновляет пре-релиз «latest», тег v1.2.0 создаёт обычный релиз.
+      - name: Move tag «latest» to this commit
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          git tag -f latest
+          git push -f origin latest
+
+      - name: Release «latest»
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: latest (main)
+          prerelease: true
+          body: Последняя сборка из main (${{ github.sha }}). Нужен .NET 8 Desktop Runtime.
+          files: out/WgSwitch.exe
+
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
