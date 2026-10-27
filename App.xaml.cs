@@ -41,7 +41,7 @@ public partial class App : Application
         _settings = new SettingsService();
         _settings.Load();
         _wg = new WireGuardService(_settings);
-        _tray = new TrayService(_wg, ShowMain, ExitApp);
+        _tray = new TrayService(_wg, _settings, ShowMain, () => _ = ExitAppAsync());
         _wg.Start();
 
         bool autostart = e.Args.Contains("--autostart", StringComparer.OrdinalIgnoreCase);
@@ -52,7 +52,7 @@ public partial class App : Application
         else
             ScheduleTrim();
 
-        if (_settings.Current.AutoConnect && !needsSetup)
+        if (!needsSetup && _settings.Current.Servers.Any(s => s.AutoConnect))
             _ = AutoConnectAsync();
     }
 
@@ -60,9 +60,9 @@ public partial class App : Application
     {
         // дать первому опросу увидеть уже поднятый туннель, чтобы не переустанавливать его
         await Task.Delay(400);
-        var name = _settings.SelectedName;
-        if (_wg.StatusOf(name).State == TunnelState.Off)
-            await _wg.ConnectAsync(name);
+        foreach (var server in _settings.Current.Servers.Where(s => s.AutoConnect))
+            if (_wg.StatusOf(server.Name).State == TunnelState.Off)
+                await _wg.ConnectAsync(server.Name);
     }
 
     public void ShowMain()
@@ -96,10 +96,21 @@ public partial class App : Application
         t.Start();
     }
 
-    private void ExitApp()
+    private bool _exiting;
+
+    private async Task ExitAppAsync()
     {
-        // туннель намеренно не трогаем: служба WireGuard живёт сама по себе
+        if (_exiting) return;
+        _exiting = true;
         _window?.Close();
+
+        // по умолчанию туннели не трогаем: служба WireGuard живёт сама по себе
+        if (_settings.Current.DisconnectOnExit)
+        {
+            var up = _wg.All.Where(s => s.State != TunnelState.Off).Select(s => _wg.DisconnectAsync(s.TunnelName));
+            await Task.WhenAny(Task.WhenAll(up), Task.Delay(TimeSpan.FromSeconds(15)));
+        }
+
         _tray.Dispose();
         _wg.Dispose();
         Shutdown();

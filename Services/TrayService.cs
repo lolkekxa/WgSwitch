@@ -15,14 +15,17 @@ public sealed class TrayService : IDisposable
     private static readonly Color Hover = Color.FromArgb(0x1A, 0x1A, 0x1A);
 
     private readonly WireGuardService _wg;
+    private readonly SettingsService _settings;
+    private readonly HashSet<string> _silent = new(StringComparer.OrdinalIgnoreCase); // о ком уже сказали «не отвечает»
     private readonly NotifyIcon _icon;
     private readonly ContextMenuStrip _menu;
     private readonly Action _open, _exit;
     private readonly Dictionary<TunnelState, Icon> _icons = [];
 
-    public TrayService(WireGuardService wg, Action open, Action exit)
+    public TrayService(WireGuardService wg, SettingsService settings, Action open, Action exit)
     {
         _wg = wg;
+        _settings = settings;
         _open = open;
         _exit = exit;
 
@@ -42,6 +45,35 @@ public sealed class TrayService : IDisposable
 
         Apply(null);
         wg.StatusChanged += Apply;
+        wg.StatusChanged += NotifyChange;
+        wg.Reconnecting += name => Toast(name, "Сервер молчит уже 2 минуты — переподключаю");
+    }
+
+    /// <summary>
+    /// «Перестал отвечать» — только для включённого туннеля (NoResponse уже означает два потерянных пинга подряд).
+    /// «Снова на связи» — только если перед этим было «не отвечает». Ручное выключение молча сбрасывает всё.
+    /// </summary>
+    private void NotifyChange(TunnelStatus s)
+    {
+        var name = s.TunnelName;
+        switch (s.State)
+        {
+            case TunnelState.NoResponse when _silent.Add(name):
+                Toast(name, $"Сервер {_settings.Find(name)?.PingHost} не отвечает");
+                break;
+            case TunnelState.Connected when _silent.Remove(name):
+                Toast(name, "Снова на связи" + (s.PingMs is { } ms ? $" · {ms} мс" : ""));
+                break;
+            case TunnelState.Off:
+                _silent.Remove(name);
+                break;
+        }
+    }
+
+    private void Toast(string title, string text)
+    {
+        if (_settings.Current.Notify)
+            _icon.ShowBalloonTip(5000, title, text, ToolTipIcon.None);
     }
 
     private void BuildMenu()
@@ -146,6 +178,7 @@ public sealed class TrayService : IDisposable
     public void Dispose()
     {
         _wg.StatusChanged -= Apply;
+        _wg.StatusChanged -= NotifyChange;
         _icon.Visible = false;
         _menu.Dispose();
         _icon.Dispose();

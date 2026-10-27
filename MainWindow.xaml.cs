@@ -51,7 +51,11 @@ public partial class MainWindow : Window
         SourceInitialized += (_, _) => Native.StyleWindow(new WindowInteropHelper(this).Handle);
         Loaded += OnLoaded;
         Closed += OnClosed;
-        StateChanged += (_, _) => SyncActivity();
+        StateChanged += (_, _) =>
+        {
+            if (WindowState == WindowState.Minimized) Dispatcher.BeginInvoke(Close);
+            else SyncActivity();
+        };
         PreviewKeyDown += OnKey;
         // вернулись из браузера после установки WireGuard — статус на шаге 1 обновится сам
         Activated += (_, _) => { if (_onboarding) RefreshWireGuardCheck(); };
@@ -399,7 +403,8 @@ public partial class MainWindow : Window
         PowerScale.BeginAnimation(ScaleTransform.ScaleYProperty, a);
     }
 
-    private void Minimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    /// <summary>Свернуть = убрать в трей: свёрнутое окно не висит в панели задач и в Alt+Tab с пустым превью.</summary>
+    private void Minimize_Click(object sender, RoutedEventArgs e) => Close();
 
     /// <summary>Крестик не завершает приложение: окно уничтожается, остаётся иконка в трее.</summary>
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
@@ -430,7 +435,10 @@ public partial class MainWindow : Window
             PingBox.Text = server?.PingHost ?? "";
             AutoStartBox.IsChecked = c.AutoStart;
             MinimizedBox.IsChecked = c.StartMinimized;
-            AutoConnectBox.IsChecked = c.AutoConnect;
+            AutoConnectBox.IsChecked = server?.AutoConnect == true;
+            NotifyBox.IsChecked = c.Notify;
+            ReconnectBox.IsChecked = c.AutoReconnect;
+            ExitOffBox.IsChecked = c.DisconnectOnExit;
             MinimizedBox.IsEnabled = c.AutoStart;
             ShowFullTunnel(server?.ConfigPath);
             SettingsError.Text = "";
@@ -464,13 +472,14 @@ public partial class MainWindow : Window
 
     private string SettingsState() => string.Join("\u001f",
         NameBox.Text.Trim(), PingBox.Text.Trim(), ConfigPath,
-        AutoStartBox.IsChecked, MinimizedBox.IsChecked, AutoConnectBox.IsChecked, FullTunnelSetting.IsChecked);
+        AutoStartBox.IsChecked, MinimizedBox.IsChecked, AutoConnectBox.IsChecked, FullTunnelSetting.IsChecked,
+        NotifyBox.IsChecked, ReconnectBox.IsChecked, ExitOffBox.IsChecked);
 
     private void WatchSettings()
     {
         foreach (var box in new[] { NameBox, PingBox })
             box.TextChanged += (_, _) => UpdateDirty();
-        foreach (var cb in new[] { AutoStartBox, MinimizedBox, AutoConnectBox, FullTunnelSetting })
+        foreach (var cb in new[] { AutoStartBox, MinimizedBox, AutoConnectBox, FullTunnelSetting, NotifyBox, ReconnectBox, ExitOffBox })
         {
             cb.Checked += (_, _) => UpdateDirty();
             cb.Unchecked += (_, _) => UpdateDirty();
@@ -511,12 +520,7 @@ public partial class MainWindow : Window
         FullTunnelSetting.IsEnabled = _fullTunnelWas is not null;
     }
 
-    /// <summary>Новые AllowedIPs WireGuard подхватывает только при запуске службы.</summary>
-    private async Task ReconnectAsync(string name)
-    {
-        await _wg.DisconnectAsync(name);
-        await _wg.ConnectAsync(name);
-    }
+
 
     private string _configPath = "";
 
@@ -631,7 +635,10 @@ public partial class MainWindow : Window
         next.Selected = name;
         next.AutoStart = AutoStartBox.IsChecked == true;
         next.StartMinimized = MinimizedBox.IsChecked == true;
-        next.AutoConnect = AutoConnectBox.IsChecked == true;
+        entry.AutoConnect = AutoConnectBox.IsChecked == true;
+        next.Notify = NotifyBox.IsChecked == true;
+        next.AutoReconnect = ReconnectBox.IsChecked == true;
+        next.DisconnectOnExit = ExitOffBox.IsChecked == true;
 
         try
         {
@@ -653,7 +660,7 @@ public partial class MainWindow : Window
         ShowSettings(false);
 
         if (fullChanged && _wg.StatusOf(name).State != TunnelState.Off)
-            _ = ReconnectAsync(name);
+            _ = _wg.ReconnectAsync(name);
     }
 
     private void ShowSettingsError(string text, bool ok = false)

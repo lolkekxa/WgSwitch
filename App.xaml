@@ -447,6 +447,35 @@
             <Setter Property="Margin" Value="0,8,0,0" />
         </Style>
 
+        <!-- полоса прокрутки: тонкая линия без стрелок, проявляется при наведении -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="6" />
+            <Setter Property="MinWidth" Value="6" />
+            <Setter Property="Opacity" Value="0.6" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.Thumb>
+                                <Thumb>
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Border Width="3" CornerRadius="1.5" Background="#3A3A3A" HorizontalAlignment="Center" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="1" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- шеврон › для строк-действий -->
         <Style x:Key="Chevron" TargetType="Path">
             <Setter Property="Data" Value="M1 1l4 4-4 4" />

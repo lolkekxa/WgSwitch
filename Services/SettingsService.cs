@@ -12,6 +12,8 @@ public sealed class ServerEntry
     /// <summary>Только путь. Содержимое конфига приложение не читает.</summary>
     public string ConfigPath { get; set; } = "";
     public string PingHost { get; set; } = "10.8.0.1";
+    /// <summary>Включать этот туннель при запуске программы.</summary>
+    public bool AutoConnect { get; set; }
 
     /// <summary>Имя туннеля = имя conf-файла без расширения (так его называет и сам WireGuard).</summary>
     [JsonIgnore] public string Name => SettingsService.TunnelNameOf(ConfigPath);
@@ -25,7 +27,15 @@ public sealed class AppSettings
     public string? Selected { get; set; }
     public bool AutoStart { get; set; }
     public bool StartMinimized { get; set; }
-    public bool AutoConnect { get; set; }
+    /// <summary>Уведомление, когда включённый сервер перестал отвечать и когда снова на связи.</summary>
+    public bool Notify { get; set; } = true;
+    /// <summary>Перезапускать туннель, если сервер молчит дольше пары минут.</summary>
+    public bool AutoReconnect { get; set; } = true;
+    /// <summary>«Выход» из трея выключает все туннели.</summary>
+    public bool DisconnectOnExit { get; set; }
+
+    // старый общий флаг автоподключения: переносится на выбранный сервер и больше не пишется
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool AutoConnect { get; set; }
 
     // старый формат с одним сервером: читается при загрузке, переносится в Servers и больше не пишется
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string? ConfigPath { get; set; }
@@ -87,6 +97,10 @@ public sealed class SettingsService
             Current.Servers.Add(new ServerEntry { ConfigPath = Current.ConfigPath.Trim().Trim('"'), PingHost = Current.PingHost ?? "10.8.0.1" });
         Current.ConfigPath = null;
         Current.PingHost = null;
+
+        if (Current.AutoConnect && SelectedServer is { } selected)
+            selected.AutoConnect = true;
+        Current.AutoConnect = false;
     }
 
     public async Task SaveAsync(AppSettings next)

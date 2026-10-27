@@ -19,6 +19,8 @@ public sealed partial class WireGuardService : IDisposable
     private const int DetailedInterval = 2500, ActiveInterval = 3000, IdleInterval = 15000;
     private const int PingTimeoutMs = 1500;
     private static readonly TimeSpan HandshakeGrace = TimeSpan.FromSeconds(12);
+    // автопереподключение: сервер молчит дольше этого — перезапускаем туннель, но не чаще раза в ReconnectCooldown
+    private static readonly TimeSpan SilentBeforeReconnect = TimeSpan.FromMinutes(2), ReconnectCooldown = TimeSpan.FromMinutes(5);
 
     private readonly SettingsService _settings;
     private readonly SynchronizationContext _ui;
@@ -39,6 +41,8 @@ public sealed partial class WireGuardService : IDisposable
         public DateTime? StartedAt;
         public int StartedPid;
         public int PingFails;
+        public DateTime? SilentSince;
+        public DateTime LastReconnect;
 
         public string ServiceName => "WireGuardTunnel$" + Name;
 
@@ -47,6 +51,9 @@ public sealed partial class WireGuardService : IDisposable
 
     /// <summary>Вызывается в UI-потоке.</summary>
     public event Action<TunnelStatus>? StatusChanged;
+
+    /// <summary>Сервер молчал слишком долго, туннель перезапускается сам. Вызывается в UI-потоке.</summary>
+    public event Action<string>? Reconnecting;
 
     /// <summary>Успешный пинг сервера (имя туннеля) — для «пульса» в окне. Вызывается в UI-потоке.</summary>
     public event Action<string>? Heartbeat;
@@ -120,6 +127,13 @@ public sealed partial class WireGuardService : IDisposable
     }
 
     // ---------- команды ----------
+
+    /// <summary>Перезапуск службы: так WireGuard перечитывает конфиг и заново ищет сервер (после сна, смены сети).</summary>
+    public async Task ReconnectAsync(string name)
+    {
+        await DisconnectAsync(name).ConfigureAwait(false);
+        await ConnectAsync(name).ConfigureAwait(false);
+    }
 
     public Task ToggleAsync(string name) => StatusOf(name).State == TunnelState.Off ? ConnectAsync(name) : DisconnectAsync(name);
 
@@ -316,6 +330,20 @@ public sealed partial class WireGuardService : IDisposable
                 : t.PingFails >= 2 || t.Status.State != TunnelState.Connected ? TunnelState.NoResponse
                 : TunnelState.Connected; // один потерянный пакет — ещё не повод краснеть
         }
+
+        if (state == TunnelState.NoResponse)
+        {
+            t.SilentSince ??= DateTime.Now;
+            var now = DateTime.Now;
+            if (_settings.Current.AutoReconnect && now - t.SilentSince > SilentBeforeReconnect && now - t.LastReconnect > ReconnectCooldown)
+            {
+                t.LastReconnect = now;
+                t.SilentSince = null;
+                _ui.Post(_ => Reconnecting?.Invoke(t.Name), null);
+                _ = ReconnectAsync(t.Name);
+            }
+        }
+        else t.SilentSince = null;
 
         DateTime? handshake = null;
         long? rx = null, tx = null;

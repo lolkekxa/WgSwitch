@@ -38,7 +38,7 @@
                         <Path.RenderTransform><RotateTransform x:Name="GearSpin" /></Path.RenderTransform>
                     </Path>
                 </Button>
-                <Button Style="{StaticResource IconButton}" WindowChrome.IsHitTestVisibleInChrome="True" Click="Minimize_Click" ToolTip="Свернуть" Margin="2,0,0,0">
+                <Button Style="{StaticResource IconButton}" WindowChrome.IsHitTestVisibleInChrome="True" Click="Minimize_Click" ToolTip="Свернуть в трей" Margin="2,0,0,0">
                     <Path Style="{StaticResource Glyph}" Data="M5 12h14" Height="2" />
                 </Button>
                 <Button Style="{StaticResource IconButton}" WindowChrome.IsHitTestVisibleInChrome="True" Click="Close_Click" ToolTip="Свернуть в трей" Margin="2,0,0,0">
@@ -158,7 +158,9 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <StackPanel>
+                <!-- настройки длиннее окна: прокрутка колесом, полоса — тонкая -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" Margin="0,0,-6,0">
+                <StackPanel Margin="0,0,6,8">
                     <!-- (01) выбранный сервер -->
                     <Grid Margin="4,8,4,0">
                         <StackPanel Orientation="Horizontal">
@@ -198,18 +200,26 @@
                                     <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,0" Text="Нужен NAT на сервере, см. SERVER.md" />
                                 </StackPanel>
                             </CheckBox>
+                            <CheckBox x:Name="AutoConnectBox" Style="{StaticResource Toggle}" Content="Подключать при запуске" />
                         </StackPanel>
                     </Border>
 
                     <!-- (02) запуск -->
                     <StackPanel Orientation="Horizontal" Margin="4,16,4,0">
-                        <TextBlock Style="{StaticResource Index}" Text="(02)" /><TextBlock Style="{StaticResource Label}" Text="Запуск" />
+                        <TextBlock Style="{StaticResource Index}" Text="(02)" /><TextBlock Style="{StaticResource Label}" Text="Поведение" />
                     </StackPanel>
                     <Border Style="{StaticResource SettingsCard}">
                         <StackPanel>
                             <CheckBox x:Name="AutoStartBox" Style="{StaticResource Toggle}" Content="Вместе с Windows" Checked="AutoStart_Changed" Unchecked="AutoStart_Changed" />
                             <CheckBox x:Name="MinimizedBox" Style="{StaticResource Toggle}" Content="Сразу свёрнутым в трей" />
-                            <CheckBox x:Name="AutoConnectBox" Style="{StaticResource Toggle}" Content="Подключаться при запуске" />
+                            <CheckBox x:Name="NotifyBox" Style="{StaticResource Toggle}" Content="Уведомлять о потере связи" />
+                            <CheckBox x:Name="ReconnectBox" Style="{StaticResource Toggle}" MinHeight="42">
+                                <StackPanel>
+                                    <TextBlock Text="Переподключать сам" />
+                                    <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,0" Text="если сервер молчит дольше 2 минут" />
+                                </StackPanel>
+                            </CheckBox>
+                            <CheckBox x:Name="ExitOffBox" Style="{StaticResource Toggle}" Content="Выключать туннели при выходе" />
                         </StackPanel>
                     </Border>
 
@@ -240,6 +250,7 @@
                         </StackPanel>
                     </Border>
                 </StackPanel>
+                </ScrollViewer>
 
                 <StackPanel Grid.Row="1">
                     <TextBlock x:Name="SettingsError" FontSize="12" Foreground="{StaticResource Red}" TextWrapping="Wrap" Margin="4,0,4,12">
