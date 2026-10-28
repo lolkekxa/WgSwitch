@@ -136,14 +136,25 @@ public partial class MainWindow : Window
         Animate(Tint, OpacityProperty, filled ? 0.08 : 0, 700 * ms);
         if (filled) AnimateColor(FillBrush, s.State == TunnelState.NoResponse ? Red : Green, 300 * ms);
         AnimateColor(IconBrush, accent, 300 * ms);
-        AnimateColor(RingBrush, s.State == TunnelState.NoResponse ? Red : Green, 300 * ms);
+        // при отключении кольцо желтеет и стирается — и уже потом из его конца появляется дуга ожидания
+        AnimateColor(RingBrush, disconnecting ? Amber : s.State == TunnelState.NoResponse ? Red : Green, 300 * ms);
         bool ring = filled && !disconnecting;
+        bool erasing = ms > 0 && !ring && StateRing.Tag is true;
         if (ms == 0 || ring != (StateRing.Tag is true)) DrawRing(ring, animate: ms > 0);
         var glow = s.State == TunnelState.NoResponse ? Red : Green;
         RippleBrush.Color = glow;
 
-        Animate(Spinner, OpacityProperty, spinning ? 1 : 0, 250 * ms);
-        if (spinning) StartSpin(); else StopSpin();
+        if (spinning && erasing)
+        {
+            // дуга появляется там, где кольцо досчиталось до нуля: у верхней точки, короткой
+            Spinner.BeginAnimation(OpacityProperty, new DoubleAnimation(1, TimeSpan.FromMilliseconds(150)) { BeginTime = TimeSpan.FromMilliseconds(RingEraseMs - 60) });
+            StartSpin(RingEraseMs - 60);
+        }
+        else
+        {
+            Animate(Spinner, OpacityProperty, spinning ? 1 : 0, 250 * ms);
+            if (spinning) StartSpin(); else StopSpin();
+        }
 
         // точка состояния (и знак в шапке)
         AnimateColor(DotBrush, accent, 300 * ms);
@@ -296,15 +307,18 @@ public partial class MainWindow : Window
 
     // длина окружности кольца в толщинах штриха: (148 − 2·0,75 − 1,5)·π / 1,5 ≈ 304
     private const double RingLength = 304;
+    private const int RingEraseMs = 450;
 
     // ---------- дуга ожидания: «дышит» на ходу — у верхней точки короткая, к низу вытягивается ----------
 
     private const double SpinPeriod = 1.4, SpinMinDeg = 18, SpinMaxDeg = 150;
     private System.Diagnostics.Stopwatch? _spin;
+    private double _spinDelay;   // с, пока дуга ещё не видна: отсчёт оборота начинается после неё, с верхней точки
 
-    private void StartSpin()
+    private void StartSpin(int delayMs = 0)
     {
         if (_spin is not null) return;
+        _spinDelay = delayMs / 1000.0;
         _spin = System.Diagnostics.Stopwatch.StartNew();
         CompositionTarget.Rendering += SpinTick;
     }
@@ -323,7 +337,7 @@ public partial class MainWindow : Window
     private void SpinTick(object? sender, EventArgs e)
     {
         if (_spin is null) return;
-        double t = _spin.Elapsed.TotalSeconds % SpinPeriod / SpinPeriod;
+        double t = Math.Max(0, _spin.Elapsed.TotalSeconds - _spinDelay) % SpinPeriod / SpinPeriod;
         double eased = t - Math.Sin(2 * Math.PI * t) / (2 * Math.PI) * 0.35;   // плавнее у верхней точки, быстрее внизу
         double span = SpinMinDeg + (SpinMaxDeg - SpinMinDeg) * (1 - Math.Cos(2 * Math.PI * t)) / 2;
         double center = -90 + 360 * eased;                                      // 0° у эллипса — справа, −90° — верх
@@ -346,7 +360,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        StateRing.BeginAnimation(System.Windows.Shapes.Shape.StrokeDashOffsetProperty, new DoubleAnimation(to, TimeSpan.FromMilliseconds(on ? 900 : 450))
+        StateRing.BeginAnimation(System.Windows.Shapes.Shape.StrokeDashOffsetProperty, new DoubleAnimation(to, TimeSpan.FromMilliseconds(on ? 900 : RingEraseMs))
         {
             EasingFunction = on ? Expo : new CubicEase { EasingMode = EasingMode.EaseIn },
         });
