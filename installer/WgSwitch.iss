@@ -1,4 +1,4 @@
-; Установщик WgSwitch (Inno Setup 6).
+; Установщик WgSwitch (Inno Setup 6.6+: нужна тёмная тема и WizardBackColor).
 ; CI: iscc installer\WgSwitch.iss /DAppVersion=1.2.0 /DSourceExe=out\setup\WgSwitch.exe /Oout
 ; Внутри — сборка со встроенным .NET, так что runtime ставить не нужно. Её публикуем без сжатия:
 ; LZMA установщика жмёт её лучше (~45 МБ против ~59), и программа стартует без распаковки в память.
@@ -32,11 +32,14 @@ OutputBaseFilename=WgSwitch-Setup
 SetupIconFile=..\Assets\app.ico
 UninstallDisplayIcon={app}\WgSwitch.exe
 UninstallDisplayName=WgSwitch
-LicenseFile=..\LICENSE
+; страницы лицензии нет: MIT не требует согласия, а файл LICENSE всё равно кладётся рядом с программой
 Compression=lzma2/ultra64
 SolidCompression=yes
-WizardStyle=modern
-; тёмная боковая картинка с логотипом и иконка-тоннель в шапке страниц (обычная и для экранов ×2)
+; тёмный, как сама программа: встроенная тёмная тема Inno Setup 6.6+, фон #0A0A0A, без разделительных линий
+WizardStyle=modern dark hidebevels
+WizardBackColor=#0A0A0A
+WizardImageBackColor=#0A0A0A
+; боковая картинка с логотипом и иконка-тоннель в шапке страниц (обычная и для экранов ×2)
 WizardImageFile=wizard.bmp,wizard@2x.bmp
 WizardSmallImageFile=wizard-small.bmp,wizard-small@2x.bmp
 ; запущенный WgSwitch держит этот mutex — установщик попросит закрыть программу

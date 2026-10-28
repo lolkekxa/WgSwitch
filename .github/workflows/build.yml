@@ -52,11 +52,11 @@ jobs:
 
       - name: Installer
         run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) {
-            Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile is.exe
-            Start-Process .\is.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-' -Wait
-          }
+          # своя копия Inno Setup 6.7.3: тёмной темы в установщике нет в версиях старше 6.6, а на раннере может стоять такая
+          $dir = Join-Path $env:RUNNER_TEMP 'inno'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile is.exe
+          Start-Process .\is.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/CURRENTUSER', "/DIR=$dir" -Wait
+          $iscc = Join-Path $dir 'ISCC.exe'
           & $iscc installer\WgSwitch.iss "/DAppVersion=${{ steps.ver.outputs.version }}" "/DSourceExe=$PWD\out\setup\WgSwitch.exe" "/O$PWD\out"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
