@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Net.NetworkInformation;
+using Microsoft.Win32;
 using System.Text.RegularExpressions;
 using WgSwitch.Models;
 
@@ -21,6 +22,10 @@ public sealed partial class WireGuardService : IDisposable
     private static readonly TimeSpan HandshakeGrace = TimeSpan.FromSeconds(12);
     // автопереподключение: сервер молчит дольше этого — перезапускаем туннель, но не чаще раза в ReconnectCooldown
     private static readonly TimeSpan SilentBeforeReconnect = TimeSpan.FromMinutes(2), ReconnectCooldown = TimeSpan.FromMinutes(5);
+    // после сна или смены сети ждать 2 минуты незачем: молчит дольше 10 с — перезапускаем сразу (не чаще раза в 30 с)
+    private static readonly TimeSpan AfterChangeWindow = TimeSpan.FromSeconds(90), FastSilent = TimeSpan.FromSeconds(10), FastCooldown = TimeSpan.FromSeconds(30);
+    private DateTime _networkChangedAt = DateTime.MinValue;
+    private string _netSignature = NetSignature();
 
     private readonly SettingsService _settings;
     private readonly SynchronizationContext _ui;
@@ -63,6 +68,44 @@ public sealed partial class WireGuardService : IDisposable
         _settings = settings;
         _ui = SynchronizationContext.Current ?? new SynchronizationContext();
         Sync();
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
+        NetworkChange.NetworkAddressChanged += OnNetworkChanged;
+    }
+
+    private void OnPowerModeChanged(object sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode == PowerModes.Resume) NetworkChanged();
+    }
+
+    private void OnNetworkChanged(object? sender, EventArgs e)
+    {
+        // событие приходит и когда поднимается сам туннель; считаем только настоящие сети,
+        // иначе каждое переподключение лежащего сервера продлевало бы «быстрый» режим бесконечно
+        var sig = NetSignature();
+        if (sig == _netSignature) return;
+        _netSignature = sig;
+        NetworkChanged();
+    }
+
+    /// <summary>Адреса физических сетей без адаптеров WireGuard: меняется при смене Wi-Fi, кабеля, мобильного интернета.</summary>
+    private static string NetSignature()
+    {
+        try
+        {
+            return string.Join(";", NetworkInterface.GetAllNetworkInterfaces()
+                .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback
+                            && !n.Description.Contains("WireGuard", StringComparison.OrdinalIgnoreCase))
+                .SelectMany(n => n.GetIPProperties().UnicastAddresses.Select(a => n.Id + "/" + a.Address))
+                .Order());
+        }
+        catch (NetworkInformationException) { return ""; }
+    }
+
+    /// <summary>Проснулись или сменилась сеть: сразу опросить туннели и какое-то время переподключать без долгого ожидания.</summary>
+    private void NetworkChanged()
+    {
+        _networkChangedAt = DateTime.Now;
+        Wake();
     }
 
     public void Start() => _ = LoopAsync();
@@ -335,7 +378,10 @@ public sealed partial class WireGuardService : IDisposable
         {
             t.SilentSince ??= DateTime.Now;
             var now = DateTime.Now;
-            if (_settings.Current.AutoReconnect && now - t.SilentSince > SilentBeforeReconnect && now - t.LastReconnect > ReconnectCooldown)
+            bool afterChange = now - _networkChangedAt < AfterChangeWindow;
+            var wait = afterChange ? FastSilent : SilentBeforeReconnect;
+            var cooldown = afterChange ? FastCooldown : ReconnectCooldown;
+            if (_settings.Current.AutoReconnect && now - t.SilentSince > wait && now - t.LastReconnect > cooldown)
             {
                 t.LastReconnect = now;
                 t.SilentSince = null;
@@ -433,6 +479,8 @@ public sealed partial class WireGuardService : IDisposable
 
     public void Dispose()
     {
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        NetworkChange.NetworkAddressChanged -= OnNetworkChanged;
         _stop.Cancel();
         lock (_tunnels)
             foreach (var t in _tunnels.Values) t.Dispose();

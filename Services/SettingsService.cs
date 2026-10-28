@@ -14,6 +14,11 @@ public sealed class ServerEntry
     public string PingHost { get; set; } = "10.8.0.1";
     /// <summary>Включать этот туннель при запуске программы.</summary>
     public bool AutoConnect { get; set; }
+    /// <summary>Быстрые действия: SSH и SFTP идут на PingHost — адрес сервера внутри туннеля.</summary>
+    public string SshUser { get; set; } = "root";
+    public int SshPort { get; set; } = 22;
+    /// <summary>Адрес веб-панели, например http://10.8.0.1:8791. Пусто — строки «Панель» нет.</summary>
+    public string? PanelUrl { get; set; }
 
     /// <summary>Имя туннеля = имя conf-файла без расширения (так его называет и сам WireGuard).</summary>
     [JsonIgnore] public string Name => SettingsService.TunnelNameOf(ConfigPath);
@@ -29,12 +34,14 @@ public sealed class AppSettings
     public bool StartMinimized { get; set; }
     /// <summary>Уведомление, когда включённый сервер перестал отвечать и когда снова на связи.</summary>
     public bool Notify { get; set; } = true;
-    /// <summary>Перезапускать туннель, если сервер молчит дольше пары минут.</summary>
+    /// <summary>Перезапускать туннель, если сервер молчит: обычно через 2 минуты, после сна или смены сети — через 10 секунд.</summary>
     public bool AutoReconnect { get; set; } = true;
     /// <summary>«Выход» из трея выключает все туннели.</summary>
     public bool DisconnectOnExit { get; set; }
     /// <summary>На главном экране ещё handshake и трафик; без этого — только пинг и время в сети, и wg.exe не запускается.</summary>
     public bool ShowDetails { get; set; }
+    /// <summary>Проверять новые релизы на GitHub при запуске и раз в 12 часов.</summary>
+    public bool CheckUpdates { get; set; } = true;
 
     // старый общий флаг автоподключения: переносится на выбранный сервер и больше не пишется
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool AutoConnect { get; set; }

@@ -54,6 +54,26 @@ public partial class App : Application
 
         if (!needsSetup && _settings.Current.Servers.Any(s => s.AutoConnect))
             _ = AutoConnectAsync();
+
+        // обновления: через несколько секунд после запуска (не мешать старту) и раз в 12 часов
+        var updates = new DispatcherTimer { Interval = TimeSpan.FromHours(12) };
+        updates.Tick += (_, _) => _ = CheckUpdatesAsync();
+        updates.Start();
+        _ = Task.Delay(TimeSpan.FromSeconds(5)).ContinueWith(_ => Dispatcher.BeginInvoke(() => _ = CheckUpdatesAsync()));
+    }
+
+    private async Task CheckUpdatesAsync()
+    {
+        if (!_settings.Current.CheckUpdates) return;
+        try { await UpdateService.CheckAsync(); }
+        catch { /* нет сети или GitHub недоступен — проверим в следующий раз */ }
+    }
+
+    /// <summary>Обновление установленной копии: запустить установщик после выхода. Туннели при этом не трогаем.</summary>
+    public void ExitForUpdate(string setupPath)
+    {
+        UpdateService.RunInstallerAfterExit(setupPath);
+        _ = ExitAppAsync(keepTunnels: true);
     }
 
     private async Task AutoConnectAsync()
@@ -98,14 +118,14 @@ public partial class App : Application
 
     private bool _exiting;
 
-    private async Task ExitAppAsync()
+    private async Task ExitAppAsync(bool keepTunnels = false)
     {
         if (_exiting) return;
         _exiting = true;
         _window?.Close();
 
         // по умолчанию туннели не трогаем: служба WireGuard живёт сама по себе
-        if (_settings.Current.DisconnectOnExit)
+        if (_settings.Current.DisconnectOnExit && !keepTunnels)
         {
             var up = _wg.All.Where(s => s.State != TunnelState.Off).Select(s => _wg.DisconnectAsync(s.TunnelName));
             await Task.WhenAny(Task.WhenAll(up), Task.Delay(TimeSpan.FromSeconds(15)));

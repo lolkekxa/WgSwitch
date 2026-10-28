@@ -11,6 +11,10 @@ public sealed class BackupServer
     public string PingHost { get; set; } = "10.8.0.1";
     /// <summary>Содержимое .conf целиком, с приватным ключом: без него после потери ПК не войти в туннель.</summary>
     public string Config { get; set; } = "";
+    public bool AutoConnect { get; set; }
+    public string SshUser { get; set; } = "root";
+    public int SshPort { get; set; } = 22;
+    public string? PanelUrl { get; set; }
 }
 
 public sealed class BackupPayload
@@ -47,7 +51,11 @@ public static class BackupService
         {
             var conf = s.ConfigPath.Trim().Trim('"');
             if (!File.Exists(conf)) throw new InvalidOperationException($"Нет конфига сервера «{s.Name}»: {Path.GetFileName(conf)}");
-            payload.Servers.Add(new BackupServer { Name = s.Name, PingHost = s.PingHost, Config = File.ReadAllText(conf) });
+            payload.Servers.Add(new BackupServer
+            {
+                Name = s.Name, PingHost = s.PingHost, Config = File.ReadAllText(conf),
+                AutoConnect = s.AutoConnect, SshUser = s.SshUser, SshPort = s.SshPort, PanelUrl = s.PanelUrl,
+            });
         }
 
         var plain = JsonSerializer.SerializeToUtf8Bytes(payload, BackupJson.Default.BackupPayload);
@@ -135,7 +143,11 @@ public static class BackupService
                     File.WriteAllText(path, s.Config, new UTF8Encoding(false));
 
                 next.Servers.RemoveAll(x => string.Equals(x.Name, s.Name, StringComparison.OrdinalIgnoreCase));
-                next.Servers.Add(new ServerEntry { ConfigPath = path, PingHost = s.PingHost });
+                next.Servers.Add(new ServerEntry
+                {
+                    ConfigPath = path, PingHost = s.PingHost,
+                    AutoConnect = s.AutoConnect, SshUser = s.SshUser, SshPort = s.SshPort, PanelUrl = s.PanelUrl,
+                });
             }
         });
 

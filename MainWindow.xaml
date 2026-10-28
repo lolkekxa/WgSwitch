@@ -39,6 +39,12 @@
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <!-- панель сервера: быстрые действия; видна тогда же, когда шестерёнка -->
+                <Button x:Name="ToolsButton" Style="{StaticResource IconButton}" WindowChrome.IsHitTestVisibleInChrome="True" Click="Tools_Click"
+                        ToolTip="Сервер: SSH, SFTP, панель" Margin="0,0,2,0" Visibility="{Binding Visibility, ElementName=GearButton}">
+                    <Path Style="{StaticResource Glyph}"
+                          Data="M4 2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M4 14h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2z M6 6h.01 M6 18h.01" />
+                </Button>
                 <Button x:Name="GearButton" Style="{StaticResource IconButton}" WindowChrome.IsHitTestVisibleInChrome="True" Click="Gear_Click" ToolTip="Настройки">
                     <Path Style="{StaticResource Glyph}" RenderTransformOrigin="0.5,0.5"
                           Data="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M15 12a3 3 0 1 1-6 0a3 3 0 1 1 6 0z">
@@ -161,6 +167,15 @@
                             </StackPanel>
                         </StackPanel>
                     </Border>
+
+                    <!-- вышла новая версия: установленная копия обновляется сама, portable — ссылка на релиз -->
+                    <Button x:Name="UpdateLink" Style="{StaticResource TextButton}" HorizontalAlignment="Center" Height="28" Margin="0,10,0,0"
+                            Visibility="Collapsed" Click="UpdateLink_Click">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="6" Height="6" Fill="{StaticResource Green}" VerticalAlignment="Center" Margin="0,1,8,0" />
+                            <TextBlock x:Name="UpdateText" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
             </Grid>
 
@@ -230,7 +245,7 @@
                             <CheckBox x:Name="ReconnectBox" Style="{StaticResource Toggle}" MinHeight="42">
                                 <StackPanel>
                                     <TextBlock Text="Переподключать сам" />
-                                    <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,0" Text="если сервер молчит дольше 2 минут" />
+                                    <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,0" Text="после сна или смены сети — за секунды" />
                                 </StackPanel>
                             </CheckBox>
                             <CheckBox x:Name="ExitOffBox" Style="{StaticResource Toggle}" Content="Выключать туннели при выходе" />
@@ -238,6 +253,12 @@
                                 <StackPanel>
                                     <TextBlock Text="Подробно на главной" />
                                     <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,0" Text="ещё handshake и трафик" />
+                                </StackPanel>
+                            </CheckBox>
+                            <CheckBox x:Name="UpdatesBox" Style="{StaticResource Toggle}" MinHeight="42">
+                                <StackPanel>
+                                    <TextBlock Text="Проверять обновления" />
+                                    <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,0" Text="при запуске и раз в 12 часов" />
                                 </StackPanel>
                             </CheckBox>
                         </StackPanel>
@@ -270,10 +291,14 @@
                         </StackPanel>
                     </Border>
 
-                    <Button Style="{StaticResource TextButton}" HorizontalAlignment="Center" Height="28" Margin="4,12,4,0"
-                            Click="Repo_Click" ToolTip="github.com/lolkekxa/WgSwitch">
-                        <TextBlock x:Name="VersionText" FontFamily="{StaticResource Mono}" FontSize="11" />
-                    </Button>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="4,12,4,0">
+                        <Button Style="{StaticResource TextButton}" Height="28" Click="Repo_Click" ToolTip="github.com/lolkekxa/WgSwitch">
+                            <TextBlock x:Name="VersionText" FontFamily="{StaticResource Mono}" FontSize="11" />
+                        </Button>
+                        <TextBlock Text="·" Foreground="{StaticResource Faint}" VerticalAlignment="Center" Margin="10,0" />
+                        <Button x:Name="CheckUpdatesButton" Style="{StaticResource TextButton}" Height="28" FontSize="11" Content="Проверить обновления"
+                                Click="CheckUpdates_Click" />
+                    </StackPanel>
                 </StackPanel>
                 </ScrollViewer>
 
@@ -293,6 +318,83 @@
                         <Button x:Name="SaveButton" Style="{StaticResource PillButton}" Content="Сохранить" HorizontalAlignment="Right" Click="Save_Click"
                                 Opacity="0" IsHitTestVisible="False" />
                     </Grid>
+                </StackPanel>
+            </Grid>
+
+            <!-- ===================== сервер: быстрые действия и проверка портов ===================== -->
+            <Grid x:Name="ToolsPanel" Margin="16,0,16,16" Visibility="Collapsed" Opacity="0">
+                <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
+                <StackPanel>
+                    <Grid Margin="4,8,4,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Index}" Text="(01)" /><TextBlock Style="{StaticResource Label}" Text="Быстрые действия" />
+                        </StackPanel>
+                        <TextBlock x:Name="ToolsHost" Style="{StaticResource Label}" FontFamily="{StaticResource Mono}" HorizontalAlignment="Right" />
+                    </Grid>
+                    <Border Style="{StaticResource SettingsCard}">
+                        <StackPanel>
+                            <Button Style="{StaticResource RowButton}" Click="Ssh_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse x:Name="SshDot" Width="6" Height="6" Margin="0,1,10,0" VerticalAlignment="Center" Fill="{StaticResource Faint}" />
+                                        <TextBlock Style="{StaticResource ActionLabel}" Text="SSH" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock x:Name="SshTarget" Style="{StaticResource Label}" FontFamily="{StaticResource Mono}" VerticalAlignment="Center" />
+                                        <Path Style="{StaticResource Chevron}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="SftpRow" Style="{StaticResource RowButton}" Click="Sftp_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse x:Name="SftpDot" Width="6" Height="6" Margin="0,1,10,0" VerticalAlignment="Center" Fill="{StaticResource Faint}" />
+                                        <TextBlock Style="{StaticResource ActionLabel}" Text="SFTP" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock Style="{StaticResource Label}" Text="FileZilla" Foreground="{StaticResource Faint}" VerticalAlignment="Center" />
+                                        <Path Style="{StaticResource Chevron}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                            <Button x:Name="PanelRow" Style="{StaticResource RowButton}" Click="Panel_Click">
+                                <Grid>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Ellipse x:Name="PanelDot" Width="6" Height="6" Margin="0,1,10,0" VerticalAlignment="Center" Fill="{StaticResource Faint}" />
+                                        <TextBlock Style="{StaticResource ActionLabel}" Text="Панель" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock x:Name="PanelTarget" Style="{StaticResource Label}" FontFamily="{StaticResource Mono}" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="150" />
+                                        <Path Style="{StaticResource Chevron}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock x:Name="ToolsHint" Style="{StaticResource Hint}" Margin="4,8,4,0" />
+
+                    <StackPanel Orientation="Horizontal" Margin="4,20,4,0">
+                        <TextBlock Style="{StaticResource Index}" Text="(02)" /><TextBlock Style="{StaticResource Label}" Text="Адреса" />
+                    </StackPanel>
+                    <Border Style="{StaticResource SettingsCard}">
+                        <StackPanel>
+                            <Grid Height="34">
+                                <TextBlock Style="{StaticResource Label}" Text="Пользователь SSH" VerticalAlignment="Center" />
+                                <TextBox x:Name="SshUserBox" Style="{StaticResource InlineBox}" Tag="root" LostKeyboardFocus="ToolsField_LostFocus" />
+                            </Grid>
+                            <Grid Height="34">
+                                <TextBlock Style="{StaticResource Label}" Text="Порт SSH" VerticalAlignment="Center" />
+                                <TextBox x:Name="SshPortBox" Style="{StaticResource InlineBox}" Tag="22" LostKeyboardFocus="ToolsField_LostFocus" />
+                            </Grid>
+                            <Grid Height="34">
+                                <TextBlock Style="{StaticResource Label}" Text="Панель" VerticalAlignment="Center" />
+                                <TextBox x:Name="PanelBox" Style="{StaticResource InlineBox}" Width="180" Tag="http://10.8.0.1:8791" LostKeyboardFocus="ToolsField_LostFocus" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock x:Name="ToolsNote" Style="{StaticResource Hint}" Margin="4,8,4,0"
+                               Text="Сохраняется само. SSH и SFTP идут на IP сервера внутри туннеля." />
                 </StackPanel>
             </Grid>
 

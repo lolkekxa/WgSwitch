@@ -46,7 +46,7 @@ public sealed class TrayService : IDisposable
         Apply(null);
         wg.StatusChanged += Apply;
         wg.StatusChanged += NotifyChange;
-        wg.Reconnecting += name => Toast(name, "Сервер молчит уже 2 минуты — переподключаю");
+        wg.Reconnecting += name => Toast(name, "Сервер не отвечает — переподключаю");
     }
 
     /// <summary>

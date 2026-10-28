@@ -11,7 +11,11 @@ public class BackupTests
         var settings = new SettingsService(dir.Path);
         var next = settings.Current.Clone();
         next.Servers.Add(new ServerEntry { ConfigPath = dir.File("home.conf", "[Interface]\nPrivateKey = KEY1=\n"), PingHost = "10.8.0.1" });
-        next.Servers.Add(new ServerEntry { ConfigPath = dir.File("work.conf", "[Interface]\nPrivateKey = KEY2=\n"), PingHost = "10.9.0.1" });
+        next.Servers.Add(new ServerEntry
+        {
+            ConfigPath = dir.File("work.conf", "[Interface]\nPrivateKey = KEY2=\n"), PingHost = "10.9.0.1",
+            AutoConnect = true, SshUser = "admin", SshPort = 2222, PanelUrl = "http://10.9.0.1:8791",
+        });
         next.Selected = "work";
         await settings.SaveAsync(next);
 
@@ -31,6 +35,8 @@ public class BackupTests
             Assert.Equal(["home", "work"], back.Servers.Select(s => s.Name));
             Assert.Equal("10.9.0.1", back.Servers[1].PingHost);
             Assert.Contains("PrivateKey = KEY2=", back.Servers[1].Config);
+            Assert.True(back.Servers[1].AutoConnect);
+            Assert.Equal(("admin", 2222, "http://10.9.0.1:8791"), (back.Servers[1].SshUser, back.Servers[1].SshPort, back.Servers[1].PanelUrl));
         }
     }
 

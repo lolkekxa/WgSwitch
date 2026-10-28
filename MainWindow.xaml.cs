@@ -76,6 +76,8 @@ public partial class MainWindow : Window
         RebuildChips();
         _wg.StatusChanged += OnStatus;
         _wg.Heartbeat += OnHeartbeat;
+        UpdateService.AvailableChanged += ShowUpdate;
+        ShowUpdate(UpdateService.Available);
         SyncActivity();
 
         if (NeedsSetup(_settings))
@@ -90,6 +92,7 @@ public partial class MainWindow : Window
     {
         _wg.StatusChanged -= OnStatus;
         _wg.Heartbeat -= OnHeartbeat;
+        UpdateService.AvailableChanged -= ShowUpdate;
         _wg.SetDetailed(false);
         _clock.Stop();
         foreach (var t in _copied.Values) t.Stop();
@@ -498,6 +501,7 @@ public partial class MainWindow : Window
     {
         if (e.Key != Key.Escape) return;
         if (_backupFrom is not null) BackupBack();
+        else if (_toolsOpen) ShowTools(false);
         else if (_settingsOpen) ShowSettings(false);
         else if (_onboarding) CancelSetup();
         else return;
@@ -506,7 +510,11 @@ public partial class MainWindow : Window
 
     // ---------- настройки ----------
 
-    private void Gear_Click(object sender, RoutedEventArgs e) => ShowSettings(!_settingsOpen);
+    private void Gear_Click(object sender, RoutedEventArgs e)
+    {
+        if (_toolsOpen) CloseToolsInstant();
+        ShowSettings(!_settingsOpen);
+    }
 
     private void ShowSettings(bool open)
     {
@@ -525,6 +533,7 @@ public partial class MainWindow : Window
             ReconnectBox.IsChecked = c.AutoReconnect;
             ExitOffBox.IsChecked = c.DisconnectOnExit;
             DetailsBox.IsChecked = c.ShowDetails;
+            UpdatesBox.IsChecked = c.CheckUpdates;
             MinimizedBox.IsEnabled = c.AutoStart;
             ShowFullTunnel(server?.ConfigPath);
             SettingsError.Text = "";
@@ -536,6 +545,7 @@ public partial class MainWindow : Window
             SettingsPanel.IsHitTestVisible = true;
         }
 
+        if (!open) MainPanel.Visibility = Visibility.Visible;
         MainPanel.IsHitTestVisible = !open;
         // уходящая панель лежит поверх главного экрана до конца анимации — клики ловить ей уже нельзя
         SettingsPanel.IsHitTestVisible = open;
@@ -559,13 +569,13 @@ public partial class MainWindow : Window
     private string SettingsState() => string.Join("\u001f",
         NameBox.Text.Trim(), PingBox.Text.Trim(), ConfigPath,
         AutoStartBox.IsChecked, MinimizedBox.IsChecked, AutoConnectBox.IsChecked, FullTunnelSetting.IsChecked,
-        NotifyBox.IsChecked, ReconnectBox.IsChecked, ExitOffBox.IsChecked, DetailsBox.IsChecked);
+        NotifyBox.IsChecked, ReconnectBox.IsChecked, ExitOffBox.IsChecked, DetailsBox.IsChecked, UpdatesBox.IsChecked);
 
     private void WatchSettings()
     {
         foreach (var box in new[] { NameBox, PingBox })
             box.TextChanged += (_, _) => UpdateDirty();
-        foreach (var cb in new[] { AutoStartBox, MinimizedBox, AutoConnectBox, FullTunnelSetting, NotifyBox, ReconnectBox, ExitOffBox, DetailsBox })
+        foreach (var cb in new[] { AutoStartBox, MinimizedBox, AutoConnectBox, FullTunnelSetting, NotifyBox, ReconnectBox, ExitOffBox, DetailsBox, UpdatesBox })
         {
             cb.Checked += (_, _) => UpdateDirty();
             cb.Unchecked += (_, _) => UpdateDirty();
@@ -726,6 +736,7 @@ public partial class MainWindow : Window
         next.AutoReconnect = ReconnectBox.IsChecked == true;
         next.DisconnectOnExit = ExitOffBox.IsChecked == true;
         next.ShowDetails = DetailsBox.IsChecked == true;
+        next.CheckUpdates = UpdatesBox.IsChecked == true;
 
         try
         {
@@ -1033,6 +1044,252 @@ public partial class MainWindow : Window
     private void Install_Click(object sender, RoutedEventArgs e) => App.OpenUrl(WireGuardService.InstallUrl);
 
     private void Repo_Click(object sender, RoutedEventArgs e) => App.OpenUrl(SettingsService.RepoUrl);
+
+    // ---------- панель сервера: SSH, SFTP, панель и доступность их портов через туннель ----------
+
+    private bool _toolsOpen;
+    private DispatcherTimer? _probeTimer;
+
+    private void Tools_Click(object sender, RoutedEventArgs e) => ShowTools(!_toolsOpen);
+
+    private void ShowTools(bool open)
+    {
+        if (open == _toolsOpen) return;
+        _toolsOpen = open;
+        if (open)
+        {
+            var from = MainPanel;
+            if (_settingsOpen) CloseSettingsInstant();
+            FillTools();
+            Slide(from, ToolsPanel, 1);
+            SetTitle(_selected);
+            ToolsButton.Foreground = new SolidColorBrush(Fg);
+            _probeTimer ??= new DispatcherTimer(TimeSpan.FromSeconds(5), DispatcherPriority.Background, (_, _) => _ = ProbeAsync(), Dispatcher);
+            _probeTimer.Start();
+            _ = ProbeAsync();
+        }
+        else
+        {
+            SaveToolsFields();
+            _probeTimer?.Stop();
+            MainPanel.Visibility = Visibility.Visible;
+            Slide(ToolsPanel, MainPanel, -1);
+            SetTitle("WgSwitch");
+            ToolsButton.Foreground = new SolidColorBrush(Muted);
+        }
+    }
+
+    /// <summary>Без анимации: шестерёнка нажата при открытой панели сервера.</summary>
+    private void CloseToolsInstant()
+    {
+        SaveToolsFields();
+        _toolsOpen = false;
+        _probeTimer?.Stop();
+        ToolsPanel.Visibility = Visibility.Collapsed;
+        ToolsPanel.IsHitTestVisible = false;
+        MainPanel.Visibility = Visibility.Visible;
+        MainPanel.BeginAnimation(OpacityProperty, null);
+        MainPanel.Opacity = 1;
+        MainShift.BeginAnimation(TranslateTransform.XProperty, null);
+        MainShift.X = 0;
+        ToolsButton.Foreground = new SolidColorBrush(Muted);
+    }
+
+    /// <summary>Без анимации: кнопка сервера нажата при открытых настройках.</summary>
+    private void CloseSettingsInstant()
+    {
+        _settingsOpen = false;
+        SettingsPanel.Visibility = Visibility.Collapsed;
+        SettingsPanel.IsHitTestVisible = false;
+        GearSpin.BeginAnimation(RotateTransform.AngleProperty, null);
+        GearSpin.Angle = 0;
+        GearButton.Foreground = new SolidColorBrush(Muted);
+        MainPanel.Visibility = Visibility.Visible;
+        MainPanel.BeginAnimation(OpacityProperty, null);
+        MainPanel.Opacity = 1;
+        MainShift.BeginAnimation(TranslateTransform.XProperty, null);
+        MainShift.X = 0;
+        MainPanel.IsHitTestVisible = true;
+    }
+
+    private void FillTools()
+    {
+        var s = _settings.Find(_selected);
+        SshUserBox.Text = s?.SshUser ?? "root";
+        SshPortBox.Text = (s?.SshPort ?? 22).ToString();
+        PanelBox.Text = s?.PanelUrl ?? "";
+        RenderTools();
+    }
+
+    private void RenderTools()
+    {
+        var s = _settings.Find(_selected);
+        var host = s?.PingHost ?? "";
+        ToolsHost.Text = host;
+        SshTarget.Text = s is null ? "" : $"{s.SshUser}@{host}" + (s.SshPort != 22 ? $":{s.SshPort}" : "");
+        SftpRow.Visibility = FileZillaPath() is null ? Visibility.Collapsed : Visibility.Visible;
+        var panel = PanelUri(s);
+        PanelRow.Visibility = panel is null ? Visibility.Collapsed : Visibility.Visible;
+        PanelTarget.Text = panel is null ? "" : panel.Authority;
+        bool up = _wg.StatusOf(_selected).State is TunnelState.Connected or TunnelState.NoResponse;
+        ToolsHint.Text = up
+            ? "Точка — открыт ли порт через туннель, проверка раз в 5 секунд."
+            : "Туннель выключен: адреса внутри VPN сейчас недоступны.";
+    }
+
+    private static Uri? PanelUri(ServerEntry? s) =>
+        string.IsNullOrWhiteSpace(s?.PanelUrl) ? null : Uri.TryCreate(s!.PanelUrl, UriKind.Absolute, out var u) ? u : null;
+
+    /// <summary>Раз в 5 секунд, пока панель открыта: TCP-соединение с портом SSH и панели.</summary>
+    private async Task ProbeAsync()
+    {
+        var s = _settings.Find(_selected);
+        bool up = _wg.StatusOf(_selected).State is TunnelState.Connected or TunnelState.NoResponse;
+        if (s is null || !up)
+        {
+            SetDot(SshDot, null); SetDot(SftpDot, null); SetDot(PanelDot, null);
+            return;
+        }
+        var panel = PanelUri(s);
+        var sshTask = NetProbe.CanConnectAsync(s.PingHost, s.SshPort);
+        var panelTask = panel is null ? Task.FromResult<bool?>(null)
+            : NetProbe.CanConnectAsync(panel.Host, panel.Port).ContinueWith(t => (bool?)t.Result);
+        bool ssh = await sshTask;
+        bool? web = await panelTask;
+        if (!_toolsOpen) return;
+        SetDot(SshDot, ssh); SetDot(SftpDot, ssh); SetDot(PanelDot, web);
+    }
+
+    private static void SetDot(System.Windows.Shapes.Ellipse dot, bool? ok) =>
+        dot.Fill = new SolidColorBrush(ok is null ? Faint : ok.Value ? Green : Red);
+
+    private void ToolsField_LostFocus(object sender, KeyboardFocusChangedEventArgs e) => SaveToolsFields();
+
+    /// <summary>Поля панели сервера сохраняются сами: при уходе с поля и при закрытии панели.</summary>
+    private void SaveToolsFields()
+    {
+        var s = _settings.Find(_selected);
+        if (s is null) return;
+        var user = SshUserBox.Text.Trim();
+        int port = int.TryParse(SshPortBox.Text.Trim(), out var p) && p is > 0 and < 65536 ? p : 22;
+        var panel = PanelBox.Text.Trim();
+        if (panel.Length > 0 && !panel.Contains("://")) panel = "http://" + panel;
+        string? panelUrl = panel.Length == 0 ? null : panel;
+        user = user.Length == 0 ? "root" : user;
+        if (user == s.SshUser && port == s.SshPort && panelUrl == s.PanelUrl) return;
+
+        var next = _settings.Current.Clone();
+        var entry = next.Servers.First(x => Same(x.Name, _selected));
+        entry.SshUser = user;
+        entry.SshPort = port;
+        entry.PanelUrl = panelUrl;
+        _ = SaveQuietlyAsync(next);
+        // SaveQuietlyAsync подменит Current после записи; для строк панели берём новые значения сразу
+        s.SshUser = user; s.SshPort = port; s.PanelUrl = panelUrl;
+        SshPortBox.Text = port.ToString();
+        PanelBox.Text = panelUrl ?? "";
+        RenderTools();
+        _ = ProbeAsync();
+    }
+
+    private static string? FileZillaPath()
+    {
+        foreach (var root in new[] { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) })
+        {
+            var exe = Path.Combine(root, "FileZilla FTP Client", "filezilla.exe");
+            if (File.Exists(exe)) return exe;
+        }
+        return null;
+    }
+
+    /// <summary>Терминал с ssh: Windows Terminal, если есть, иначе обычная консоль.</summary>
+    private void Ssh_Click(object sender, RoutedEventArgs e)
+    {
+        SaveToolsFields();
+        if (_settings.Find(_selected) is not { } s) return;
+        var args = $"{s.SshUser}@{s.PingHost}" + (s.SshPort != 22 ? $" -p {s.SshPort}" : "");
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("wt.exe", $"ssh {args}") { UseShellExecute = true });
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("cmd.exe", $"/k ssh {args}") { UseShellExecute = true });
+        }
+    }
+
+    private void Sftp_Click(object sender, RoutedEventArgs e)
+    {
+        SaveToolsFields();
+        if (_settings.Find(_selected) is not { } s || FileZillaPath() is not { } fz) return;
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(fz, $"sftp://{s.SshUser}@{s.PingHost}:{s.SshPort}") { UseShellExecute = false });
+    }
+
+    private void Panel_Click(object sender, RoutedEventArgs e)
+    {
+        SaveToolsFields();
+        if (PanelUri(_settings.Find(_selected)) is { } u) App.OpenUrl(u.ToString());
+    }
+
+    // ---------- обновления ----------
+
+    private bool _updating;
+
+    private void ShowUpdate(UpdateInfo? update)
+    {
+        if (_updating) return;
+        UpdateLink.Visibility = update is null ? Visibility.Collapsed : Visibility.Visible;
+        if (update is null) return;
+        UpdateText.Text = $"Вышла версия {update.Version} · " + (UpdateService.IsInstalled && update.SetupUrl is not null ? "Обновить ›" : "Скачать ›");
+        UpdateLink.ToolTip = UpdateService.IsInstalled ? "Скачает установщик, сверит SHA-256 и обновит программу" : update.PageUrl;
+    }
+
+    /// <summary>Установленная копия: скачать, сверить, поставить поверх и перезапуститься. Иначе — страница релиза.</summary>
+    private async void UpdateLink_Click(object sender, RoutedEventArgs e)
+    {
+        if (UpdateService.Available is not { } update || _updating) return;
+        if (!UpdateService.IsInstalled || update.SetupUrl is null)
+        {
+            App.OpenUrl(update.PageUrl);
+            return;
+        }
+
+        _updating = true;
+        UpdateLink.IsEnabled = false;
+        try
+        {
+            var progress = new Progress<double>(p => UpdateText.Text = $"Загружаю {update.Version} · {p:P0}");
+            var setup = await UpdateService.DownloadSetupAsync(update, progress);
+            UpdateText.Text = "Устанавливаю, программа перезапустится";
+            ((App)Application.Current).ExitForUpdate(setup);
+        }
+        catch (Exception ex)
+        {
+            _updating = false;
+            UpdateLink.IsEnabled = true;
+            UpdateText.Text = "Не получилось: " + ex.Message + " · ещё раз ›";
+        }
+    }
+
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        CheckUpdatesButton.IsEnabled = false;
+        CheckUpdatesButton.Content = "Проверяю…";
+        try
+        {
+            var update = await UpdateService.CheckAsync();
+            ShowSettingsError(update is null ? $"Установлена последняя версия {SettingsService.Version}" : $"Вышла версия {update.Version} — ссылка на главной", ok: true);
+        }
+        catch (Exception ex)
+        {
+            ShowSettingsError("Не удалось проверить: " + (ex is TaskCanceledException ? "нет ответа от GitHub" : ex.Message));
+        }
+        finally
+        {
+            CheckUpdatesButton.Content = "Проверить обновления";
+            CheckUpdatesButton.IsEnabled = true;
+        }
+    }
 
     /// <summary>Handshake и трафик на главной — только если включено «Подробно на главной».</summary>
     private void ApplyDetails() =>

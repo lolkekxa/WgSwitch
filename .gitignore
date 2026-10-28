@@ -7,3 +7,4 @@ publish-*/
 out/
 dist/
 release-notes.md
+*_wpftmp.csproj

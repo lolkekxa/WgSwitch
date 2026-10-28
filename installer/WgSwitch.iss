@@ -66,7 +66,8 @@ Name: "{group}\WgSwitch"; Filename: "{app}\WgSwitch.exe"
 Name: "{autodesktop}\WgSwitch"; Filename: "{app}\WgSwitch.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\WgSwitch.exe"; Description: "Запустить WgSwitch"; Flags: nowait postinstall skipifsilent
+; без skipifsilent: после тихого обновления из программы новая версия запускается сама
+Filename: "{app}\WgSwitch.exe"; Description: "Запустить WgSwitch"; Flags: nowait postinstall
 
 [UninstallRun]
 ; задача автозапуска из планировщика; конфиги в ProgramData и настройки в AppData не трогаем
