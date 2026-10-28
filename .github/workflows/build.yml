@@ -30,13 +30,16 @@ jobs:
           if ('${{ github.ref }}' -like 'refs/tags/v*') {
             $v = '${{ github.ref_name }}'.Substring(1)
             $suffix = "-$v"
+            $file = ($v -split '-')[0] + '.0'   # v1.2.0-beta → 1.2.0.0
           } else {
             $base = ([xml](Get-Content WgSwitch.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
             $v = "$base-dev.${{ github.run_number }}"
             $suffix = ''
+            $file = "$base.${{ github.run_number }}"
           }
           "version=$v" >> $env:GITHUB_OUTPUT
           "suffix=$suffix" >> $env:GITHUB_OUTPUT
+          "file=$file" >> $env:GITHUB_OUTPUT
 
       - name: Tests
         run: dotnet test tests/WgSwitch.Tests/WgSwitch.Tests.csproj -c Release
@@ -57,7 +60,7 @@ jobs:
           Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile is.exe
           Start-Process .\is.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-', '/CURRENTUSER', "/DIR=$dir" -Wait
           $iscc = Join-Path $dir 'ISCC.exe'
-          & $iscc installer\WgSwitch.iss "/DAppVersion=${{ steps.ver.outputs.version }}" "/DSourceExe=$PWD\out\setup\WgSwitch.exe" "/O$PWD\out"
+          & $iscc installer\WgSwitch.iss "/DAppVersion=${{ steps.ver.outputs.version }}" "/DFileVersion=${{ steps.ver.outputs.file }}" "/DSourceExe=$PWD\out\setup\WgSwitch.exe" "/O$PWD\out"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Collect files and checksums

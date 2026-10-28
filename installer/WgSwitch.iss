@@ -7,6 +7,10 @@
 #ifndef AppVersion
   #define AppVersion "1.0.0"
 #endif
+; версия файла в Windows — только числа: 1.0.0-dev.57 → 1.0.0.57, 1.2.0 → 1.2.0.0
+#ifndef FileVersion
+  #define FileVersion "1.0.0.0"
+#endif
 #ifndef SourceExe
   #define SourceExe "..\out\setup\WgSwitch.exe"
 #endif
@@ -20,7 +24,7 @@ AppPublisher=LKXA
 AppPublisherURL=https://lkxa.ru
 AppSupportURL=https://github.com/lolkekxa/WgSwitch
 AppUpdatesURL=https://github.com/lolkekxa/WgSwitch/releases
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#FileVersion}
 DefaultDirName={autopf}\WgSwitch
 DefaultGroupName=WgSwitch
 DisableProgramGroupPage=yes
