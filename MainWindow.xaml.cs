@@ -93,7 +93,7 @@ public partial class MainWindow : Window
         _wg.SetDetailed(false);
         _clock.Stop();
         foreach (var t in _copied.Values) t.Stop();
-        SpinnerTurn.BeginAnimation(RotateTransform.AngleProperty, null);
+        StopSpin();
         StopDotPing();
     }
 
@@ -143,15 +143,7 @@ public partial class MainWindow : Window
         RippleBrush.Color = glow;
 
         Animate(Spinner, OpacityProperty, spinning ? 1 : 0, 250 * ms);
-        if (spinning && !SpinnerTurn.HasAnimatedProperties)
-        {
-            // оборот с мягким разгоном и торможением — живее равномерной крутилки
-            var spin = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromSeconds(1.2), RepeatBehavior = RepeatBehavior.Forever };
-            spin.KeyFrames.Add(new SplineDoubleKeyFrame(360, KeyTime.FromPercent(1), new KeySpline(0.35, 0.1, 0.65, 0.9)));
-            SpinnerTurn.BeginAnimation(RotateTransform.AngleProperty, spin);
-        }
-        else if (!spinning)
-            SpinnerTurn.BeginAnimation(RotateTransform.AngleProperty, null);
+        if (spinning) StartSpin(); else StopSpin();
 
         // точка состояния (и знак в шапке)
         AnimateColor(DotBrush, accent, 300 * ms);
@@ -304,6 +296,40 @@ public partial class MainWindow : Window
 
     // длина окружности кольца в толщинах штриха: (148 − 2·0,75 − 1,5)·π / 1,5 ≈ 304
     private const double RingLength = 304;
+
+    // ---------- дуга ожидания: «дышит» на ходу — у верхней точки короткая, к низу вытягивается ----------
+
+    private const double SpinPeriod = 1.4, SpinMinDeg = 18, SpinMaxDeg = 150;
+    private System.Diagnostics.Stopwatch? _spin;
+
+    private void StartSpin()
+    {
+        if (_spin is not null) return;
+        _spin = System.Diagnostics.Stopwatch.StartNew();
+        CompositionTarget.Rendering += SpinTick;
+    }
+
+    private void StopSpin()
+    {
+        if (_spin is null) return;
+        CompositionTarget.Rendering -= SpinTick;
+        _spin = null;
+    }
+
+    /// <summary>
+    /// Каждый кадр, только пока идёт подключение: середина дуги обходит круг за SpinPeriod с лёгким разгоном и торможением,
+    /// а длина дуги меняется по косинусу — минимум в верхней точке, максимум внизу. Длину штриха WPF не анимирует, поэтому вручную.
+    /// </summary>
+    private void SpinTick(object? sender, EventArgs e)
+    {
+        if (_spin is null) return;
+        double t = _spin.Elapsed.TotalSeconds % SpinPeriod / SpinPeriod;
+        double eased = t - Math.Sin(2 * Math.PI * t) / (2 * Math.PI) * 0.35;   // плавнее у верхней точки, быстрее внизу
+        double span = SpinMinDeg + (SpinMaxDeg - SpinMinDeg) * (1 - Math.Cos(2 * Math.PI * t)) / 2;
+        double center = -90 + 360 * eased;                                      // 0° у эллипса — справа, −90° — верх
+        Spinner.StrokeDashArray = [span / 360 * RingLength, RingLength];
+        SpinnerTurn.Angle = center - span / 2;
+    }
 
     /// <summary>
     /// Подключилось — кольцо дорисовывается от верхней точки по кругу («цепь замкнулась»), кнопка чуть вдыхает,
