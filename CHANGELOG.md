@@ -3,7 +3,7 @@
 Формат: [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии — [SemVer](https://semver.org/lang/ru/).
 Раздел нужной версии попадает в описание релиза на GitHub.
 
-## [Unreleased]
+## [1.1.0] — 2026-10-29
 
 ### Добавлено
 - Конфиг для телефона: панель сервера → «Телефон». Свой ключ (через wg.exe), QR-код для WgSwitch или WireGuard
