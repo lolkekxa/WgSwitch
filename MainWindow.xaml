@@ -246,6 +246,9 @@
                             </Button>
                         </StackPanel>
                     </Border>
+
+                    <TextBlock x:Name="VersionText" Style="{StaticResource Hint}" Margin="4,16,4,0" HorizontalAlignment="Center"
+                               FontFamily="{StaticResource Mono}" />
                 </StackPanel>
                 </ScrollViewer>
 

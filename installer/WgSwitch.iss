@@ -1,0 +1,90 @@
+; Установщик WgSwitch (Inno Setup 6).
+; CI: iscc installer\WgSwitch.iss /DAppVersion=1.2.0 /DSourceExe=out\full\WgSwitch.exe /Oout
+; Внутри — сборка со встроенным .NET, так что runtime ставить не нужно.
+; WireGuard не перепаковываем: по галочке скачиваем официальный подписанный установщик с wireguard.com.
+
+#ifndef AppVersion
+  #define AppVersion "1.0.0"
+#endif
+#ifndef SourceExe
+  #define SourceExe "..\publish-sc\WgSwitch.exe"
+#endif
+
+[Setup]
+AppId={{8F3B6C1E-5D2A-4C7B-9E21-6A4D3F0B7C55}
+AppName=WgSwitch
+AppVersion={#AppVersion}
+AppVerName=WgSwitch {#AppVersion}
+AppPublisher=LKXA
+AppPublisherURL=https://lkxa.ru
+AppSupportURL=https://github.com/lolkekxa/WgSwitch
+AppUpdatesURL=https://github.com/lolkekxa/WgSwitch/releases
+VersionInfoVersion={#AppVersion}
+DefaultDirName={autopf}\WgSwitch
+DefaultGroupName=WgSwitch
+DisableProgramGroupPage=yes
+PrivilegesRequired=admin
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+MinVersion=10.0
+OutputBaseFilename=WgSwitch-Setup
+SetupIconFile=..\Assets\app.ico
+UninstallDisplayIcon={app}\WgSwitch.exe
+UninstallDisplayName=WgSwitch
+LicenseFile=..\LICENSE
+Compression=lzma2/ultra64
+SolidCompression=yes
+WizardStyle=modern
+; запущенный WgSwitch держит этот mutex — установщик попросит закрыть программу
+AppMutex=Local\WgSwitch.Instance
+CloseApplications=yes
+
+[Languages]
+Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "Ярлык на рабочем столе"; Flags: unchecked
+Name: "wireguard"; Description: "Установить WireGuard для Windows (официальный установщик с wireguard.com)"; Check: not WireGuardInstalled
+
+[Files]
+Source: "{#SourceExe}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+
+[Icons]
+Name: "{group}\WgSwitch"; Filename: "{app}\WgSwitch.exe"
+Name: "{autodesktop}\WgSwitch"; Filename: "{app}\WgSwitch.exe"; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\WgSwitch.exe"; Description: "Запустить WgSwitch"; Flags: nowait postinstall skipifsilent
+
+[UninstallRun]
+; задача автозапуска из планировщика; конфиги в ProgramData и настройки в AppData не трогаем
+Filename: "schtasks.exe"; Parameters: "/delete /tn ""WgSwitch"" /f"; Flags: runhidden; RunOnceId: "DeleteAutostartTask"
+
+[Code]
+function WireGuardInstalled: Boolean;
+begin
+  Result := FileExists(ExpandConstant('{commonpf64}\WireGuard\wireguard.exe'));
+end;
+
+procedure InstallWireGuard;
+var
+  Installer: string;
+  ResultCode: Integer;
+begin
+  try
+    DownloadTemporaryFile('https://download.wireguard.com/windows-client/wireguard-installer.exe', 'wireguard-installer.exe', '', nil);
+    Installer := ExpandConstant('{tmp}\wireguard-installer.exe');
+    // официальный загрузчик сам скачивает свежий MSI и проверяет его подпись
+    if not Exec(Installer, '', '', SW_SHOW, ewWaitUntilTerminated, ResultCode) then
+      MsgBox('Не удалось запустить установщик WireGuard.' + #13#10 + 'Установите его вручную: https://www.wireguard.com/install/', mbError, MB_OK);
+  except
+    MsgBox('Не удалось скачать WireGuard: ' + GetExceptionMessage + #13#10 + 'Установите его вручную: https://www.wireguard.com/install/', mbError, MB_OK);
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if (CurStep = ssPostInstall) and WizardIsTaskSelected('wireguard') then
+    InstallWireGuard;
+end;

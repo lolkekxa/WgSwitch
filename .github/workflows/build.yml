@@ -13,6 +13,9 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
     steps:
       - uses: actions/checkout@v4
 
@@ -20,39 +23,113 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Publish (single file, needs .NET 8 Desktop Runtime)
-        run: dotnet publish WgSwitch.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o out
+      # тег v1.2.0 → 1.2.0; main → версия из csproj + номер сборки (1.2.0-dev.57)
+      - name: Version
+        id: ver
+        run: |
+          if ('${{ github.ref }}' -like 'refs/tags/v*') {
+            $v = '${{ github.ref_name }}'.Substring(1)
+            $suffix = "-$v"
+          } else {
+            $base = ([xml](Get-Content WgSwitch.csproj)).Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
+            $v = "$base-dev.${{ github.run_number }}"
+            $suffix = ''
+          }
+          "version=$v" >> $env:GITHUB_OUTPUT
+          "suffix=$suffix" >> $env:GITHUB_OUTPUT
+
+      - name: Tests
+        run: dotnet test tests/WgSwitch.Tests/WgSwitch.Tests.csproj -c Release
+
+      - name: Publish lite (needs .NET 8 Desktop Runtime)
+        run: dotnet publish WgSwitch.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -p:Version=${{ steps.ver.outputs.version }} -o out/lite
+
+      - name: Publish portable (.NET inside)
+        run: dotnet publish WgSwitch.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:Version=${{ steps.ver.outputs.version }} -o out/full
+
+      - name: Installer
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile is.exe
+            Start-Process .\is.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-' -Wait
+          }
+          & $iscc installer\WgSwitch.iss "/DAppVersion=${{ steps.ver.outputs.version }}" "/DSourceExe=$PWD\out\full\WgSwitch.exe" "/O$PWD\out"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Collect files and checksums
+        run: |
+          $s = '${{ steps.ver.outputs.suffix }}'
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item out\WgSwitch-Setup.exe "dist\WgSwitch-Setup$s.exe"
+          Copy-Item out\full\WgSwitch.exe "dist\WgSwitch-portable$s.exe"
+          Copy-Item out\lite\WgSwitch.exe "dist\WgSwitch-lite$s.exe"
+          Get-ChildItem dist\*.exe | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
+            Set-Content dist\SHA256SUMS.txt -Encoding utf8
+          Get-Content dist\SHA256SUMS.txt
 
       # артефакты делят квоту хранилища со всем аккаунтом — если она кончилась, сборку это не валит
       - uses: actions/upload-artifact@v4
         continue-on-error: true
         with:
           name: WgSwitch
-          path: out/WgSwitch.exe
+          path: dist/*
           retention-days: 3
 
-      # главное место для exe — релизы: они в квоту артефактов не входят.
-      # Каждый пуш в main обновляет релиз «latest», тег v1.2.0 создаёт отдельный постоянный релиз.
-      - name: Move tag «latest» to this commit
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        shell: bash
+      - name: Release notes
+        if: github.event_name == 'push'
         run: |
-          git tag -f latest
-          git push -f origin latest
+          $v = '${{ steps.ver.outputs.version }}'
+          $s = '${{ steps.ver.outputs.suffix }}'
+          if ('${{ github.ref }}' -like 'refs/tags/v*') {
+            $changelog = Get-Content CHANGELOG.md -Raw
+            $m = [regex]::Match($changelog, "(?ms)^## \[$([regex]::Escape($v))\][^\n]*\n(.*?)(?=^## \[|\z)")
+            $intro = if ($m.Success) { $m.Groups[1].Value.Trim() } else { '' }
+          } else {
+            $intro = "Сборка из ``main`` ($('${{ github.sha }}'.Substring(0, 7))). Для постоянной версии берите [последний релиз](https://github.com/${{ github.repository }}/releases/latest)."
+          }
+          $sums = Get-Content dist\SHA256SUMS.txt -Raw
+          $nl = [Environment]::NewLine
+          $body = @(
+            $intro, '',
+            '### Какой файл скачать', '',
+            '| Файл | Для чего |', '|---|---|',
+            "| ``WgSwitch-Setup$s.exe`` | установщик: всё внутри, по галочке поставит WireGuard |",
+            "| ``WgSwitch-portable$s.exe`` | один файл без установки, .NET внутри |",
+            "| ``WgSwitch-lite$s.exe`` | 0.6 МБ, нужен [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |", '',
+            'Windows может предупредить о неизвестном издателе — [почему и что делать](https://github.com/${{ github.repository }}#-предупреждение-windows).', '',
+            '### SHA-256', '', '```', $sums.Trim(), '```'
+          ) -join $nl
+          Set-Content release-notes.md $body -Encoding utf8
 
-      - name: Release «latest»
+      # main → пре-релиз «dev», который перезаписывается; старый релиз «latest» больше не нужен
+      - name: Move tag «dev» to this commit
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes 2>$null
+          git tag -f dev
+          git push -f origin dev
+          exit 0
+
+      - name: Release «dev»
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: WgSwitch (последняя сборка)
-          prerelease: false
-          make_latest: true
-          body: Последняя сборка из main (${{ github.sha }}). Нужен .NET 8 Desktop Runtime.
-          files: out/WgSwitch.exe
+          tag_name: dev
+          name: Сборка из main · ${{ steps.ver.outputs.version }}
+          prerelease: true
+          make_latest: false
+          body_path: release-notes.md
+          files: dist/*
 
+      # тег v1.2.0 → постоянный релиз, на него ведёт ссылка «последний релиз»
       - name: Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: out/WgSwitch.exe
+          name: WgSwitch ${{ steps.ver.outputs.version }}
+          make_latest: true
+          body_path: release-notes.md
+          files: dist/*

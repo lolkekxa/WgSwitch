@@ -4,3 +4,6 @@ publish/
 publish-*/
 *.user
 .vs/
+out/
+dist/
+release-notes.md

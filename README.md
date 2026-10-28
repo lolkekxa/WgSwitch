@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/lolkekxa/vpn-client/releases/latest"><b>Скачать</b></a> ·
+  <a href="https://github.com/lolkekxa/WgSwitch/releases/latest"><b>Скачать</b></a> ·
   <a href="#-что-умеет">Что умеет</a> ·
   <a href="#-быстрый-старт">Быстрый старт</a> ·
   <a href="#-несколько-серверов">Серверы</a> ·
@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/lolkekxa/vpn-client/actions/workflows/build.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/lolkekxa/vpn-client/build.yml?branch=main&style=flat-square&labelColor=0a0a0a&label=build" /></a>
+  <a href="https://github.com/lolkekxa/WgSwitch/actions/workflows/build.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/lolkekxa/WgSwitch/build.yml?branch=main&style=flat-square&labelColor=0a0a0a&label=build" /></a>
   <img alt="Windows 10/11" src="https://img.shields.io/badge/Windows-10_%2F_11-a5e8f5?style=flat-square&labelColor=0a0a0a" />
   <img alt=".NET 8" src="https://img.shields.io/badge/.NET-8_·_WPF-c4b5fd?style=flat-square&labelColor=0a0a0a" />
   <img alt="WireGuard" src="https://img.shields.io/badge/WireGuard-official_client-b8ecc8?style=flat-square&labelColor=0a0a0a" />
@@ -74,8 +74,9 @@ Exe весит около **0.6 МБ**, сторонних библиотек н
 
 ## ✦ Быстрый старт
 
-1. Поставьте **[WireGuard для Windows](https://www.wireguard.com/install/)** и **[.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)** (x64).
-2. Скачайте `WgSwitch.exe` из **[релизов](https://github.com/lolkekxa/vpn-client/releases/latest)** и запустите. Программа попросит права администратора: без них Windows не даёт ставить и снимать службу туннеля.
+1. Скачайте **`WgSwitch-Setup`** из **[последнего релиза](https://github.com/lolkekxa/WgSwitch/releases/latest)** и установите.
+   Если WireGuard ещё не стоит, установщик предложит скачать официальный с wireguard.com. .NET ставить не нужно, он внутри.
+2. Запустите WgSwitch. Программа попросит права администратора: без них Windows не даёт ставить и снимать службу туннеля.
 3. Пройдите мастер: адрес сервера, его публичный ключ, ваш IP в VPN.
 4. Скопируйте блок `[Peer]` с шага 3 в конфиг сервера. Что сделать на сервере целиком, расписано в **[SERVER.md](SERVER.md)**: WireGuard, файрвол и доступ к SSH и панелям только через VPN.
 5. Нажмите кнопку. Зелёный — готово.
@@ -83,6 +84,37 @@ Exe весит около **0.6 МБ**, сторонних библиотек н
 Что-то не работает — разбор ошибок в **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 
 Уже есть свой `.conf`? На первом шаге мастера нажмите «У меня есть .conf». Есть резервная копия — «Восстановить из копии».
+
+### Какой файл скачать
+
+| Файл | Для чего |
+|---|---|
+| `WgSwitch-Setup-x.y.z.exe` | установщик: ярлык в «Пуске», удаление через «Приложения», по галочке ставит WireGuard |
+| `WgSwitch-portable-x.y.z.exe` | один файл без установки, .NET внутри (~65 МБ) |
+| `WgSwitch-lite-x.y.z.exe` | один файл на 0.6 МБ, нужен [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |
+
+WireGuard для Windows нужен в любом случае: туннель поднимает именно он. В установщик он не вшит,
+а скачивается официальный подписанный — так всегда приходит свежая версия от разработчиков WireGuard.
+
+## ✦ Предупреждение Windows
+
+Exe не подписан сертификатом разработчика, поэтому при первом запуске Windows может предупредить:
+
+- **SmartScreen: «Windows защитил ваш компьютер»** → «Подробнее» → «Выполнить в любом случае».
+  Так Windows встречает любой новый неподписанный файл, у которого ещё нет «репутации».
+- **Контроль учётных записей: «Неизвестный издатель»** → «Да». Права администратора нужны, чтобы
+  ставить и снимать службу туннеля WireGuard.
+
+Убедиться, что файл ровно тот, что собрал GitHub, можно по контрольной сумме из описания релиза:
+
+```powershell
+Get-FileHash .\WgSwitch-Setup-1.0.0.exe -Algorithm SHA256
+```
+
+Каждый файл в релизах собирается из этого репозитория на GitHub Actions — [журнал сборок](https://github.com/lolkekxa/WgSwitch/actions).
+Чтобы предупреждение исчезло, нужна подпись кодом: бесплатно для open source через SignPath Foundation
+или платный сертификат (например, Certum Open Source). Даже с подписью SmartScreen какое-то время
+предупреждает, пока у файла не накопится репутация.
 
 ## ✦ Несколько серверов
 
@@ -145,13 +177,19 @@ icacls C:\ProgramData\WgSwitch /inheritance:r /grant:r "*S-1-5-32-544:(OI)(CI)F"
 
 ## ✦ Сборка
 
-Каждый пуш в `main` собирается на GitHub Actions и обновляет релиз
-[`latest`](https://github.com/lolkekxa/vpn-client/releases/tag/latest). Тег вида `v1.2.0` создаёт отдельный
-постоянный релиз.
+Каждый пуш на GitHub Actions прогоняет тесты и собирает три файла: установщик, portable и lite.
+
+- пуш в `main` обновляет пре-релиз [`dev`](https://github.com/lolkekxa/WgSwitch/releases/tag/dev) — свежая сборка для проверки;
+- тег вида `v1.2.0` выпускает постоянный релиз «WgSwitch 1.2.0» с описанием из [CHANGELOG.md](CHANGELOG.md).
+
+Версия берётся из тега (`v1.2.0` → `1.2.0`), сборки из `main` получают `1.2.0-dev.N`. Её видно внизу настроек.
 
 Локально нужен .NET SDK 8 или новее:
 
 ```powershell
+# тесты
+dotnet test tests/WgSwitch.Tests/WgSwitch.Tests.csproj
+
 # один файл (~0.6 МБ), нужен .NET 8 Desktop Runtime
 dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 
@@ -187,6 +225,8 @@ Services/BackupService      зашифрованная резервная коп
 Services/Native             DWM, SCM, сброс рабочего набора
 Services/Proc               запуск внешних утилит без окна консоли
 Assets/                     шрифты Geist (OFL), иконка приложения
+installer/WgSwitch.iss      установщик (Inno Setup 6)
+tests/WgSwitch.Tests        тесты: мастер, режим «весь интернет», резервная копия, настройки
 ```
 
 Сторонних NuGet-пакетов нет: WPF для окна, `System.Windows.Forms.NotifyIcon` для трея, остальное —

@@ -62,7 +62,19 @@ public sealed class SettingsService
     public static readonly string ConfigFolder =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), AppName);
 
-    private readonly string _dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppName);
+    private readonly string _dir;
+
+    public SettingsService() : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), AppName)) { }
+
+    /// <summary>Папка settings.json задаётся явно — для тестов.</summary>
+    internal SettingsService(string dir) => _dir = dir;
+
+    /// <summary>Версия сборки без хвоста с коммитом: 1.2.0 или 1.2.0-dev.15.</summary>
+    public static string Version { get; } =
+        (System.Reflection.Assembly.GetExecutingAssembly()
+            .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "0.0.0")
+        .Split('+')[0];
     private string FilePath => Path.Combine(_dir, "settings.json");
 
     public AppSettings Current { get; private set; } = new();

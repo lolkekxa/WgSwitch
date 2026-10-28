@@ -39,6 +39,7 @@ public partial class MainWindow : Window
         _status = wg.StatusOf(_selected);
         InitializeComponent();
         WatchSettings();
+        VersionText.Text = $"WgSwitch {SettingsService.Version}";
 
         // как всплывающие окна трея: правый нижний угол рабочей области (над панелью задач, где бы она ни была)
         var area = SystemParameters.WorkArea;
