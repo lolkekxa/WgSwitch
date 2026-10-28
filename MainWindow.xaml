@@ -136,20 +136,27 @@
 
                     <!-- карточка статуса: IP уже есть под статусом, здесь только то, что меняется -->
                     <Border Margin="0,16,0,0" CornerRadius="16" BorderBrush="{StaticResource Line}" BorderThickness="1" Padding="16,8">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="26" /><RowDefinition Height="26" /><RowDefinition Height="26" /><RowDefinition Height="26" />
-                            </Grid.RowDefinitions>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="01" /><TextBlock Style="{StaticResource Label}" Text="Пинг" /></StackPanel>
-                            <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="02" /><TextBlock Style="{StaticResource Label}" Text="В сети" /></StackPanel>
-                            <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="03" /><TextBlock Style="{StaticResource Label}" Text="Handshake" /></StackPanel>
-                            <StackPanel Grid.Row="3" Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Style="{StaticResource Index}" Text="04" /><TextBlock Style="{StaticResource Label}" Text="Трафик" /></StackPanel>
-
-                            <TextBlock x:Name="PingValue" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
-                            <TextBlock x:Name="UptimeValue" Grid.Row="1" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
-                            <TextBlock x:Name="HandshakeValue" Grid.Row="2" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
-                            <TextBlock x:Name="TrafficValue" Grid.Row="3" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
-                        </Grid>
+                        <StackPanel>
+                            <Grid Height="26">
+                                <TextBlock Style="{StaticResource Label}" Text="Пинг" VerticalAlignment="Center" />
+                                <TextBlock x:Name="PingValue" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                            </Grid>
+                            <Grid Height="26">
+                                <TextBlock Style="{StaticResource Label}" Text="В сети" VerticalAlignment="Center" />
+                                <TextBlock x:Name="UptimeValue" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                            </Grid>
+                            <!-- подробности: настройки → «Подробно на главной» -->
+                            <StackPanel x:Name="DetailRows" Visibility="Collapsed">
+                                <Grid Height="26">
+                                    <TextBlock Style="{StaticResource Label}" Text="Handshake" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="HandshakeValue" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                                </Grid>
+                                <Grid Height="26">
+                                    <TextBlock Style="{StaticResource Label}" Text="Трафик" VerticalAlignment="Center" />
+                                    <TextBlock x:Name="TrafficValue" Style="{StaticResource Copyable}" MouseLeftButtonUp="CopyValue_MouseUp" VerticalAlignment="Center" />
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
             </Grid>
@@ -224,6 +231,12 @@
                                 </StackPanel>
                             </CheckBox>
                             <CheckBox x:Name="ExitOffBox" Style="{StaticResource Toggle}" Content="Выключать туннели при выходе" />
+                            <CheckBox x:Name="DetailsBox" Style="{StaticResource Toggle}" MinHeight="42">
+                                <StackPanel>
+                                    <TextBlock Text="Подробно на главной" />
+                                    <TextBlock Style="{StaticResource Hint}" Margin="0,2,0,0" Text="ещё handshake и трафик" />
+                                </StackPanel>
+                            </CheckBox>
                         </StackPanel>
                     </Border>
 
@@ -254,8 +267,10 @@
                         </StackPanel>
                     </Border>
 
-                    <TextBlock x:Name="VersionText" Style="{StaticResource Hint}" Margin="4,16,4,0" HorizontalAlignment="Center"
-                               FontFamily="{StaticResource Mono}" />
+                    <Button Style="{StaticResource TextButton}" HorizontalAlignment="Center" Height="28" Margin="4,12,4,0"
+                            Click="Repo_Click" ToolTip="github.com/lolkekxa/WgSwitch">
+                        <TextBlock x:Name="VersionText" FontFamily="{StaticResource Mono}" FontSize="11" />
+                    </Button>
                 </StackPanel>
                 </ScrollViewer>
 

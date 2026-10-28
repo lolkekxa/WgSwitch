@@ -347,7 +347,8 @@ public sealed partial class WireGuardService : IDisposable
 
         DateTime? handshake = null;
         long? rx = null, tx = null;
-        if (detailed)
+        // handshake и трафик — два запуска wg.exe; нужны, только если их показывают на главной
+        if (detailed && _settings.Current.ShowDetails)
             (handshake, rx, tx) = await ReadWgStatsAsync(t.Name).ConfigureAwait(false);
 
         Publish(t, new TunnelStatus(state, t.Name, rtt, since, handshake, rx, tx, t.Error));

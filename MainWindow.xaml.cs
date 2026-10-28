@@ -39,7 +39,8 @@ public partial class MainWindow : Window
         _status = wg.StatusOf(_selected);
         InitializeComponent();
         WatchSettings();
-        VersionText.Text = $"WgSwitch {SettingsService.Version}";
+        VersionText.Text = $"WgSwitch {SettingsService.Version} ↗";
+        ApplyDetails();
 
         // как всплывающие окна трея: правый нижний угол рабочей области (над панелью задач, где бы она ни была)
         var area = SystemParameters.WorkArea;
@@ -439,6 +440,7 @@ public partial class MainWindow : Window
             NotifyBox.IsChecked = c.Notify;
             ReconnectBox.IsChecked = c.AutoReconnect;
             ExitOffBox.IsChecked = c.DisconnectOnExit;
+            DetailsBox.IsChecked = c.ShowDetails;
             MinimizedBox.IsEnabled = c.AutoStart;
             ShowFullTunnel(server?.ConfigPath);
             SettingsError.Text = "";
@@ -473,13 +475,13 @@ public partial class MainWindow : Window
     private string SettingsState() => string.Join("\u001f",
         NameBox.Text.Trim(), PingBox.Text.Trim(), ConfigPath,
         AutoStartBox.IsChecked, MinimizedBox.IsChecked, AutoConnectBox.IsChecked, FullTunnelSetting.IsChecked,
-        NotifyBox.IsChecked, ReconnectBox.IsChecked, ExitOffBox.IsChecked);
+        NotifyBox.IsChecked, ReconnectBox.IsChecked, ExitOffBox.IsChecked, DetailsBox.IsChecked);
 
     private void WatchSettings()
     {
         foreach (var box in new[] { NameBox, PingBox })
             box.TextChanged += (_, _) => UpdateDirty();
-        foreach (var cb in new[] { AutoStartBox, MinimizedBox, AutoConnectBox, FullTunnelSetting, NotifyBox, ReconnectBox, ExitOffBox })
+        foreach (var cb in new[] { AutoStartBox, MinimizedBox, AutoConnectBox, FullTunnelSetting, NotifyBox, ReconnectBox, ExitOffBox, DetailsBox })
         {
             cb.Checked += (_, _) => UpdateDirty();
             cb.Unchecked += (_, _) => UpdateDirty();
@@ -639,6 +641,7 @@ public partial class MainWindow : Window
         next.Notify = NotifyBox.IsChecked == true;
         next.AutoReconnect = ReconnectBox.IsChecked == true;
         next.DisconnectOnExit = ExitOffBox.IsChecked == true;
+        next.ShowDetails = DetailsBox.IsChecked == true;
 
         try
         {
@@ -656,6 +659,7 @@ public partial class MainWindow : Window
         _selected = name;
         _wg.Sync();
         RebuildChips();
+        ApplyDetails();
         Render(_wg.StatusOf(name), animate: true);
         ShowSettings(false);
 
@@ -943,6 +947,12 @@ public partial class MainWindow : Window
     }
 
     private void Install_Click(object sender, RoutedEventArgs e) => App.OpenUrl(WireGuardService.InstallUrl);
+
+    private void Repo_Click(object sender, RoutedEventArgs e) => App.OpenUrl(SettingsService.RepoUrl);
+
+    /// <summary>Handshake и трафик на главной — только если включено «Подробно на главной».</summary>
+    private void ApplyDetails() =>
+        DetailRows.Visibility = _settings.Current.ShowDetails ? Visibility.Visible : Visibility.Collapsed;
 
     private void MadeBy_Click(object sender, RoutedEventArgs e) => App.OpenUrl("https://lkxa.ru/?ref=wgswitch");
 

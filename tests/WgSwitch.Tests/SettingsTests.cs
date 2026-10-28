@@ -34,6 +34,7 @@ public class SettingsTests
         Assert.True(s.Current.Notify);
         Assert.True(s.Current.AutoReconnect);
         Assert.False(s.Current.DisconnectOnExit);
+        Assert.False(s.Current.ShowDetails);   // на главной по умолчанию только пинг и время в сети
     }
 
     [Fact]

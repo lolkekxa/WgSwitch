@@ -33,6 +33,8 @@ public sealed class AppSettings
     public bool AutoReconnect { get; set; } = true;
     /// <summary>«Выход» из трея выключает все туннели.</summary>
     public bool DisconnectOnExit { get; set; }
+    /// <summary>На главном экране ещё handshake и трафик; без этого — только пинг и время в сети, и wg.exe не запускается.</summary>
+    public bool ShowDetails { get; set; }
 
     // старый общий флаг автоподключения: переносится на выбранный сервер и больше не пишется
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool AutoConnect { get; set; }
@@ -56,6 +58,7 @@ internal partial class SettingsJson : JsonSerializerContext;
 public sealed class SettingsService
 {
     public const string AppName = "WgSwitch";
+    public const string RepoUrl = "https://github.com/lolkekxa/WgSwitch";
     private const string TaskName = AppName;
 
     /// <summary>Сюда мастер кладёт созданные конфиги: папка доступна только администраторам и SYSTEM.</summary>
