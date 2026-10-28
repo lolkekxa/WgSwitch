@@ -133,18 +133,23 @@ public partial class MainWindow : Window
         bool filled = s.State is TunnelState.Connected or TunnelState.NoResponse;
 
         // кнопка: заливка снизу вверх, цвет иконки, свечение
-        Animate(FillShift, TranslateTransform.YProperty, filled ? 0 : 148, 700 * ms);
+        Animate(Tint, OpacityProperty, filled ? 0.08 : 0, 700 * ms);
         if (filled) AnimateColor(FillBrush, s.State == TunnelState.NoResponse ? Red : Green, 300 * ms);
         AnimateColor(IconBrush, accent, 300 * ms);
         AnimateColor(RingBrush, s.State == TunnelState.NoResponse ? Red : Green, 300 * ms);
-        Animate(StateRing, OpacityProperty, filled && !disconnecting ? 1 : 0, 500 * ms);
+        bool ring = filled && !disconnecting;
+        if (ms == 0 || ring != (StateRing.Tag is true)) DrawRing(ring, animate: ms > 0);
         var glow = s.State == TunnelState.NoResponse ? Red : Green;
         RippleBrush.Color = glow;
 
         Animate(Spinner, OpacityProperty, spinning ? 1 : 0, 250 * ms);
         if (spinning && !SpinnerTurn.HasAnimatedProperties)
-            SpinnerTurn.BeginAnimation(RotateTransform.AngleProperty,
-                new DoubleAnimation(0, 360, TimeSpan.FromSeconds(1.1)) { RepeatBehavior = RepeatBehavior.Forever });
+        {
+            // оборот с мягким разгоном и торможением — живее равномерной крутилки
+            var spin = new DoubleAnimationUsingKeyFrames { Duration = TimeSpan.FromSeconds(1.2), RepeatBehavior = RepeatBehavior.Forever };
+            spin.KeyFrames.Add(new SplineDoubleKeyFrame(360, KeyTime.FromPercent(1), new KeySpline(0.35, 0.1, 0.65, 0.9)));
+            SpinnerTurn.BeginAnimation(RotateTransform.AngleProperty, spin);
+        }
         else if (!spinning)
             SpinnerTurn.BeginAnimation(RotateTransform.AngleProperty, null);
 
@@ -284,11 +289,50 @@ public partial class MainWindow : Window
     {
         if (!Same(name, _selected) || WindowState == WindowState.Minimized || _settingsOpen || _onboarding) return;
         if (DateTime.Now - _lastPulse < TimeSpan.FromSeconds(6)) return;
+        Pulse(0);
+    }
+
+    private void Pulse(int delayMs)
+    {
         _lastPulse = DateTime.Now;
-        Ripple.BeginAnimation(OpacityProperty, new DoubleAnimation(0.35, 0, TimeSpan.FromMilliseconds(1400)));
-        var grow = new DoubleAnimation(1, 1.12, TimeSpan.FromMilliseconds(1400)) { EasingFunction = Expo };
+        var begin = TimeSpan.FromMilliseconds(delayMs);
+        Ripple.BeginAnimation(OpacityProperty, new DoubleAnimation(0.35, 0, TimeSpan.FromMilliseconds(1400)) { BeginTime = begin });
+        var grow = new DoubleAnimation(1, 1.12, TimeSpan.FromMilliseconds(1400)) { EasingFunction = Expo, BeginTime = begin };
         RippleScale.BeginAnimation(ScaleTransform.ScaleXProperty, grow);
         RippleScale.BeginAnimation(ScaleTransform.ScaleYProperty, grow);
+    }
+
+    // длина окружности кольца в толщинах штриха: (148 − 2·0,75 − 1,5)·π / 1,5 ≈ 304
+    private const double RingLength = 304;
+
+    /// <summary>
+    /// Подключилось — кольцо дорисовывается от верхней точки по кругу («цепь замкнулась»), кнопка чуть вдыхает,
+    /// следом одно кольцо-пульс. Отключилось — кольцо стирается быстрее, чем рисовалось.
+    /// </summary>
+    private void DrawRing(bool on, bool animate)
+    {
+        StateRing.Tag = on;
+        double to = on ? 0 : RingLength;
+        if (!animate)
+        {
+            StateRing.BeginAnimation(System.Windows.Shapes.Shape.StrokeDashOffsetProperty, null);
+            StateRing.StrokeDashOffset = to;
+            return;
+        }
+
+        StateRing.BeginAnimation(System.Windows.Shapes.Shape.StrokeDashOffsetProperty, new DoubleAnimation(to, TimeSpan.FromMilliseconds(on ? 900 : 450))
+        {
+            EasingFunction = on ? Expo : new CubicEase { EasingMode = EasingMode.EaseIn },
+        });
+        if (!on) return;
+
+        var breathe = new DoubleAnimation(1.025, TimeSpan.FromMilliseconds(200))
+        {
+            AutoReverse = true, BeginTime = TimeSpan.FromMilliseconds(250), EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+        };
+        PowerScale.BeginAnimation(ScaleTransform.ScaleXProperty, breathe);
+        PowerScale.BeginAnimation(ScaleTransform.ScaleYProperty, breathe);
+        Pulse(600);
     }
 
     private void StartDotPing(Color c)

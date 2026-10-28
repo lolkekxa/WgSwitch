@@ -86,21 +86,24 @@
                             </Button.Template>
                             <Grid>
                                 <Ellipse Fill="{StaticResource Surface}" Stroke="{StaticResource Line}" StrokeThickness="1" />
-                                <Grid IsHitTestVisible="False" Opacity="0.08">
+                                <!-- оттенок состояния внутри кнопки: проявляется, пока дорисовывается кольцо -->
+                                <Grid x:Name="Tint" IsHitTestVisible="False" Opacity="0">
                                     <Grid.Clip><EllipseGeometry Center="74,74" RadiusX="74" RadiusY="74" /></Grid.Clip>
                                     <Rectangle>
                                         <Rectangle.Fill><SolidColorBrush x:Name="FillBrush" Color="{StaticResource GreenColor}" /></Rectangle.Fill>
-                                        <Rectangle.RenderTransform><TranslateTransform x:Name="FillShift" Y="148" /></Rectangle.RenderTransform>
                                     </Rectangle>
                                 </Grid>
-                                <Ellipse x:Name="StateRing" Margin="0.75" StrokeThickness="1.5" Opacity="0" IsHitTestVisible="False">
+                                <!-- кольцо состояния: при подключении само дорисовывается по кругу, при отключении стирается -->
+                                <Ellipse x:Name="StateRing" Margin="0.75" StrokeThickness="1.5" IsHitTestVisible="False"
+                                         StrokeDashArray="304 304" StrokeDashOffset="304" RenderTransformOrigin="0.5,0.5">
                                     <Ellipse.Stroke><SolidColorBrush x:Name="RingBrush" Color="{StaticResource GreenColor}" /></Ellipse.Stroke>
+                                    <Ellipse.RenderTransform><RotateTransform Angle="-90" /></Ellipse.RenderTransform>
                                 </Ellipse>
-                                <Path x:Name="Spinner" Data="M74,0.75 A73.25,73.25 0 0 1 147.25,74" Stroke="{StaticResource Amber}" StrokeThickness="1.5"
-                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" Opacity="0" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5"
-                                      Width="148" Height="148" Stretch="None">
-                                    <Path.RenderTransform><RotateTransform x:Name="SpinnerTurn" /></Path.RenderTransform>
-                                </Path>
+                                <!-- ожидание: короткая дуга, вращается с разгоном и торможением -->
+                                <Ellipse x:Name="Spinner" Margin="0.75" Stroke="{StaticResource Amber}" StrokeThickness="1.5"
+                                         StrokeDashArray="56 400" StrokeDashCap="Round" Opacity="0" IsHitTestVisible="False" RenderTransformOrigin="0.5,0.5">
+                                    <Ellipse.RenderTransform><RotateTransform x:Name="SpinnerTurn" /></Ellipse.RenderTransform>
+                                </Ellipse>
                                 <Path Width="36" Height="36" Stretch="Uniform" StrokeThickness="1.5"
                                       StrokeStartLineCap="Round" StrokeEndLineCap="Round" IsHitTestVisible="False"
                                       Data="M12 2v10 M18.4 6.6a9 9 0 1 1-12.77.04">
