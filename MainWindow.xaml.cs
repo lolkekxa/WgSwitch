@@ -5,6 +5,8 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Effects;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using WgSwitch.Models;
 using WgSwitch.Services;
@@ -24,7 +26,8 @@ public partial class MainWindow : Window
 
     private TunnelStatus _status;
     private string? _shownText;
-    private bool _pending;
+    /// <summary>Серверы, у которых сейчас идёт команда: true — подключение (второе нажатие его отменит), false — отключение.</summary>
+    private readonly Dictionary<string, bool> _busy = new(StringComparer.OrdinalIgnoreCase);
     private bool _settingsOpen;
     private bool _onboarding;
     private bool _adding;          // мастер открыт ради ещё одного сервера — его можно отменить
@@ -61,6 +64,7 @@ public partial class MainWindow : Window
         PreviewKeyDown += OnKey;
         // вернулись из браузера после установки WireGuard — статус на шаге 1 обновится сам
         Activated += (_, _) => { if (_onboarding) RefreshWireGuardCheck(); };
+        Deactivated += (_, _) => HidePhoneSecrets();
     }
 
     /// <summary>Серверов ещё нет — вместо пульта показываем мастер первого запуска.</summary>
@@ -121,8 +125,9 @@ public partial class MainWindow : Window
         _status = s;
         int ms = animate ? 1 : 0;
 
-        bool disconnecting = _pending && s.State is TunnelState.Connected or TunnelState.NoResponse;
-        bool spinning = s.State == TunnelState.Connecting || _pending;
+        bool pending = _busy.TryGetValue(s.TunnelName, out var connecting);
+        bool disconnecting = pending && !connecting;
+        bool spinning = s.State == TunnelState.Connecting || pending;
 
         var (accent, text) = s.State switch
         {
@@ -447,7 +452,7 @@ public partial class MainWindow : Window
 
     private void Select(string name)
     {
-        if (Same(name, _selected) || _pending) return;
+        if (Same(name, _selected)) return; // команда у другого сервера идёт своим чередом — переключаться можно
         _selected = name;
 
         var next = _settings.Current.Clone();
@@ -473,15 +478,24 @@ public partial class MainWindow : Window
 
     private async void Power_Click(object sender, RoutedEventArgs e)
     {
-        if (_pending) return;
-        _pending = true;
         var name = _selected;
+        if (_busy.TryGetValue(name, out var connecting))
+        {
+            // подключение затянулось — второе нажатие отменяет его; само отключение не прерываем
+            if (!connecting) return;
+            _busy[name] = false;
+            Press();
+            Render(_status, animate: true);
+            await _wg.DisconnectAsync(name);
+            return;
+        }
+        _busy[name] = _wg.StatusOf(name).State == TunnelState.Off;
         Press();
         Render(_status, animate: true);
         try { await _wg.ToggleAsync(name); }
         finally
         {
-            _pending = false;
+            _busy.Remove(name);
             if (Same(name, _selected)) Render(_wg.StatusOf(name), animate: true);
         }
     }
@@ -501,6 +515,7 @@ public partial class MainWindow : Window
     {
         if (e.Key != Key.Escape) return;
         if (_backupFrom is not null) BackupBack();
+        else if (_phoneOpen) PhoneBack();
         else if (_toolsOpen) ShowTools(false);
         else if (_settingsOpen) ShowSettings(false);
         else if (_onboarding) CancelSetup();
@@ -966,6 +981,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void DisarmRemove()
+    {
+        _removeArmed?.Stop();
+        _removeArmed = null;
+        RemoveText.Text = "Удалить";
+        RemoveLink.Foreground = new SolidColorBrush(Muted);
+    }
+
     /// <summary>Из настроек: «+ Добавить» — тот же мастер, но с отменой.</summary>
     private void AddServer_Click(object sender, RoutedEventArgs e) => LeaveSettingsTo(() => StartOnboarding(SettingsPanel, instant: false));
 
@@ -978,15 +1001,30 @@ public partial class MainWindow : Window
         next();
     }
 
-    /// <summary>Убирает сервер из списка. Файл конфига не трогаем: он может быть нужен.</summary>
+    private DispatcherTimer? _removeArmed;
+
+    /// <summary>
+    /// Убирает сервер из списка и удаляет его конфиг. В конфиге приватный ключ, вернуть его нельзя —
+    /// поэтому первое нажатие только переспрашивает, второе в течение 3 секунд удаляет.
+    /// </summary>
     private async void RemoveServer_Click(object sender, RoutedEventArgs e)
     {
-        if (_settings.Find(_selected) is null) return;
+        if (_settings.Find(_selected) is not { } server) return;
         if (_wg.StatusOf(_selected).State != TunnelState.Off)
         {
             ShowSettingsError("Сначала выключите туннель");
             return;
         }
+        if (_removeArmed is null)
+        {
+            RemoveText.Text = "Точно? Конфиг удалится";
+            RemoveLink.Foreground = new SolidColorBrush(Red);
+            _removeArmed = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _removeArmed.Tick += (_, _) => DisarmRemove();
+            _removeArmed.Start();
+            return;
+        }
+        DisarmRemove();
 
         var next = _settings.Current.Clone();
         next.Servers.RemoveAll(x => Same(x.Name, _selected));
@@ -996,6 +1034,17 @@ public partial class MainWindow : Window
         {
             ShowSettingsError(ex.Message);
             return;
+        }
+
+        // файл — только если на него не ссылается другой сервер из списка
+        var conf = server.ConfigPath.Trim().Trim('"');
+        if (!next.Servers.Any(x => string.Equals(x.ConfigPath.Trim().Trim('"'), conf, StringComparison.OrdinalIgnoreCase)))
+        {
+            try { File.Delete(conf); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                ShowSettingsError($"Сервер убран, но конфиг не удалился: {ex.Message}");
+            }
         }
 
         _wg.Sync();
@@ -1203,6 +1252,167 @@ public partial class MainWindow : Window
     }
 
     /// <summary>Терминал с ssh: Windows Terminal, если есть, иначе обычная консоль.</summary>
+    // ---------- телефон: конфиг со своим ключом и QR-код; ничего не пишется на диск ----------
+
+    private bool _phoneOpen;
+    private string? _phonePeer;
+
+    private void Phone_Click(object sender, RoutedEventArgs e)
+    {
+        SaveToolsFields();
+        if (_settings.Find(_selected) is not { } s) return;
+        ClearPhone();
+        PhoneIpBox.Text = ConfigFactory.SuggestPhoneIp(s.ConfigPath);
+        _phoneOpen = true;
+        _probeTimer?.Stop();
+        GearButton.Visibility = Visibility.Collapsed; // кнопка сервера привязана к ней и спрячется тоже
+        Slide(ToolsPanel, PhonePanel, 1);
+        SetTitle("Телефон");
+    }
+
+    private void PhoneBack_Click(object sender, RoutedEventArgs e) => PhoneBack();
+
+    private void PhoneBack()
+    {
+        if (!_phoneOpen) return;
+        _phoneOpen = false;
+        ClearPhone();
+        GearButton.Visibility = Visibility.Visible;
+        Slide(PhonePanel, ToolsPanel, -1);
+        SetTitle(_selected);
+        _probeTimer?.Start();
+        _ = ProbeAsync();
+    }
+
+    // ---------- размытие: QR и блок показываются только по кнопке и прячутся, когда окно теряет фокус ----------
+
+    private bool _revealed;
+
+    private void Reveal_Click(object sender, RoutedEventArgs e) => SetRevealed(true);
+
+    private void QrCard_MouseUp(object sender, MouseButtonEventArgs e)
+    {
+        if (_revealed) SetRevealed(false);
+    }
+
+    private void SetRevealed(bool on, bool animate = true)
+    {
+        _revealed = on;
+        int ms = animate ? 350 : 0;
+        // эффект с нулевым радиусом всё равно пересэмплирует картинку и мылит модули — после показа снимаем его совсем
+        if (!on)
+        {
+            QrCard.Effect = QrBlur;
+            PhonePeerText.Effect = PeerBlur;
+        }
+        Animate(QrBlur, BlurEffect.RadiusProperty, on ? 0 : 22, ms, done: () => { if (_revealed) QrCard.Effect = null; });
+        Animate(PeerBlur, BlurEffect.RadiusProperty, on ? 0 : 8, ms, done: () => { if (_revealed) PhonePeerText.Effect = null; });
+        Animate(RevealButton, OpacityProperty, on ? 0 : 1, animate ? 250 : 0);
+        RevealButton.IsHitTestVisible = !on;
+        QrCard.Cursor = on ? Cursors.Hand : Cursors.Arrow;
+    }
+
+    /// <summary>Ушли из окна (демонстрация экрана, другое приложение) — данные снова под размытием.</summary>
+    private void HidePhoneSecrets()
+    {
+        if (_phoneOpen && _revealed) SetRevealed(false);
+    }
+
+    /// <summary>QR с приватным ключом телефона не должен висеть в памяти дольше, чем открыт экран.</summary>
+    private void ClearPhone()
+    {
+        SetRevealed(false, animate: false);
+        PhoneQr.Source = null;
+        PhonePeerText.Text = "";
+        _phonePeer = null;
+        PhoneSetup.Visibility = Visibility.Visible;
+        PhoneResult.Visibility = Visibility.Collapsed;
+        PhoneGo.Content = "Создать QR";
+        PhoneGo.IsEnabled = true;
+        PhoneCopy.Content = "Скопировать";
+        HideError(PhoneError);
+    }
+
+    private async void PhoneGo_Click(object sender, RoutedEventArgs e)
+    {
+        if (_phonePeer is not null)
+        {
+            PhoneBack();
+            return;
+        }
+        if (_settings.Find(_selected) is not { } s) return;
+        if (!System.Net.IPAddress.TryParse(PhoneIpBox.Text.Trim(), out var ip) || ip.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            ShowPhoneError("Адрес телефона: IPv4, например 10.8.0.3");
+            return;
+        }
+
+        HideError(PhoneError);
+        PhoneGo.IsEnabled = false;
+        PhoneGo.Content = "Создаю…";
+        try
+        {
+            var r = await ConfigFactory.CreatePhoneAsync(s.ConfigPath, s.Name, s.PingHost, ip);
+            if (!_phoneOpen) return;
+            ShowQr(QrCode.Encode(r.Config));
+            _phonePeer = r.PeerBlock;
+            PhonePeerText.Text = r.PeerBlock;
+            PhoneSetup.Visibility = Visibility.Collapsed;
+            PhoneResult.Visibility = Visibility.Visible;
+            PhoneResult.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(400)));
+            PhoneGo.Content = "Готово";
+        }
+        catch (Exception ex)
+        {
+            ShowPhoneError(ex.Message);
+            PhoneGo.Content = "Создать QR";
+        }
+        finally
+        {
+            PhoneGo.IsEnabled = true;
+        }
+    }
+
+    private void ShowPhoneError(string text)
+    {
+        PhoneError.Text = text;
+        PhoneError.Visibility = Visibility.Visible;
+    }
+
+    private void PhoneCopy_Click(object sender, RoutedEventArgs e)
+    {
+        if (_phonePeer is null) return;
+        try
+        {
+            Clipboard.SetText(_phonePeer.Replace("\n", Environment.NewLine));
+            PhoneCopy.Content = "Скопировано ✓";
+        }
+        catch (System.Runtime.InteropServices.COMException)
+        {
+            PhoneCopy.Content = "Буфер занят, ещё раз";
+        }
+    }
+
+    /// <summary>
+    /// QR — растр «пиксель на модуль», увеличенный в целое число раз экранных пикселей без сглаживания:
+    /// все модули строго одинаковые, иначе при дробном масштабе камера читает код хуже.
+    /// </summary>
+    private void ShowQr(QrCode qr)
+    {
+        int n = qr.Size;
+        var pixels = new byte[n * n];
+        for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+                pixels[y * n + x] = qr[x, y] ? (byte)0x0A : (byte)0xFF;
+        var bitmap = BitmapSource.Create(n, n, 96, 96, PixelFormats.Gray8, null, pixels, n);
+        bitmap.Freeze();
+
+        double dpi = VisualTreeHelper.GetDpi(this).DpiScaleX;
+        int k = Math.Max(2, (int)(216 * dpi / n));
+        PhoneQr.Width = PhoneQr.Height = k * n / dpi;
+        PhoneQr.Source = bitmap;
+    }
+
     private void Ssh_Click(object sender, RoutedEventArgs e)
     {
         SaveToolsFields();

@@ -198,7 +198,7 @@
                         <TextBlock Style="{StaticResource Label}" HorizontalAlignment="Right">
                             <Hyperlink Click="AddServer_Click" Foreground="{StaticResource Muted}" Cursor="Hand" TextDecorations="{x:Null}">+ Добавить</Hyperlink>
                             <Run Text="  " />
-                            <Hyperlink Click="RemoveServer_Click" Foreground="{StaticResource Muted}" Cursor="Hand" TextDecorations="{x:Null}">Удалить</Hyperlink>
+                            <Hyperlink x:Name="RemoveLink" Click="RemoveServer_Click" Foreground="{StaticResource Muted}" Cursor="Hand" TextDecorations="{x:Null}"><Run x:Name="RemoveText" Text="Удалить" /></Hyperlink>
                         </TextBlock>
                     </Grid>
                     <Border Style="{StaticResource SettingsCard}">
@@ -370,6 +370,16 @@
                                     </StackPanel>
                                 </Grid>
                             </Button>
+                            <!-- конфиг для телефона: свой ключ, QR для WgSwitch или WireGuard на телефоне -->
+                            <Button Style="{StaticResource RowButton}" Click="Phone_Click">
+                                <Grid>
+                                    <TextBlock Style="{StaticResource ActionLabel}" Text="Телефон" Margin="16,0,0,0" />
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <TextBlock Style="{StaticResource Label}" Text="QR-код" Foreground="{StaticResource Faint}" VerticalAlignment="Center" />
+                                        <Path Style="{StaticResource Chevron}" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
                         </StackPanel>
                     </Border>
                     <TextBlock x:Name="ToolsHint" Style="{StaticResource Hint}" Margin="4,8,4,0" />
@@ -395,6 +405,75 @@
                     </Border>
                     <TextBlock x:Name="ToolsNote" Style="{StaticResource Hint}" Margin="4,8,4,0"
                                Text="Сохраняется само. SSH и SFTP идут на IP сервера внутри туннеля." />
+                </StackPanel>
+            </Grid>
+
+            <!-- ===================== телефон: свой ключ и QR-код ===================== -->
+            <Grid x:Name="PhonePanel" Margin="16,0,16,16" Visibility="Collapsed" Opacity="0">
+                <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" Margin="0,0,-6,0">
+                    <StackPanel Margin="0,0,6,8">
+                        <StackPanel x:Name="PhoneSetup">
+                            <TextBlock Style="{StaticResource Heading}" Text="Телефон" Margin="4,8,4,0" />
+                            <TextBlock Style="{StaticResource Body}" Margin="4,8,4,0"
+                                       Text="У телефона будет свой ключ: один и тот же конфиг на двух устройствах сразу не работает — сервер перекидывает связь между ними." />
+                            <StackPanel Orientation="Horizontal" Margin="4,20,4,0">
+                                <TextBlock Style="{StaticResource Index}" Text="(01)" /><TextBlock Style="{StaticResource Label}" Text="Адрес телефона" />
+                            </StackPanel>
+                            <Border Style="{StaticResource SettingsCard}">
+                                <Grid Height="34">
+                                    <TextBlock Style="{StaticResource Label}" Text="IP в туннеле" VerticalAlignment="Center" />
+                                    <TextBox x:Name="PhoneIpBox" Style="{StaticResource InlineBox}" Tag="10.8.0.3" />
+                                </Grid>
+                            </Border>
+                            <TextBlock Style="{StaticResource Hint}" Margin="4,8,4,0"
+                                       Text="Следующий после этого ПК. Если он занят другим устройством — поставьте свободный." />
+                        </StackPanel>
+
+                        <StackPanel x:Name="PhoneResult" Visibility="Collapsed">
+                            <!-- тёмные модули на белом: так QR читают все камеры. Сначала размыт — от случайного показа -->
+                            <Grid HorizontalAlignment="Center" Margin="0,8,0,0">
+                                <Border x:Name="QrCard" Background="White" CornerRadius="16" Padding="14" Cursor="Hand"
+                                        MouseLeftButtonUp="QrCard_MouseUp" ToolTip="Нажмите, чтобы скрыть">
+                                    <Border.Effect><BlurEffect x:Name="QrBlur" Radius="22" KernelType="Gaussian" /></Border.Effect>
+                                    <Image x:Name="PhoneQr" Width="216" Height="216" RenderOptions.BitmapScalingMode="NearestNeighbor" SnapsToDevicePixels="True" />
+                                </Border>
+                                <Button x:Name="RevealButton" Style="{StaticResource PillButton}" Content="Показать" HorizontalAlignment="Center"
+                                        VerticalAlignment="Center" Click="Reveal_Click" />
+                            </Grid>
+                            <TextBlock Style="{StaticResource Hint}" Margin="4,10,4,0" TextAlignment="Center"
+                                       Text="На телефоне: WgSwitch или WireGuard → «Сканировать QR-код»" />
+                            <StackPanel Orientation="Horizontal" Margin="4,16,4,0">
+                                <TextBlock Style="{StaticResource Index}" Text="(01)" /><TextBlock Style="{StaticResource Label}" Text="Блок для сервера" />
+                            </StackPanel>
+                            <Border Style="{StaticResource SettingsCard}" Padding="16,12,16,4">
+                                <StackPanel>
+                                    <TextBlock x:Name="PhonePeerText" FontFamily="{StaticResource Mono}" FontSize="11" LineHeight="17"
+                                               Foreground="{StaticResource Fg}" TextWrapping="Wrap">
+                                        <TextBlock.Effect><BlurEffect x:Name="PeerBlur" Radius="8" /></TextBlock.Effect>
+                                    </TextBlock>
+                                    <Button x:Name="PhoneCopy" Style="{StaticResource TextButton}" Content="Скопировать" HorizontalAlignment="Right" Height="30" Click="PhoneCopy_Click" />
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Style="{StaticResource Hint}" Margin="4,8,4,0"
+                                       Text="Допишите в /etc/wireguard/wg0.conf и примените: sudo bash -c 'wg syncconf wg0 &lt;(wg-quick strip wg0)'. Ключ телефона на ПК не сохраняется — закроете экран, и QR пропадёт." />
+                            <TextBlock Style="{StaticResource Hint}" Margin="4,6,4,0" Foreground="{StaticResource Amber}"
+                                       Text="Все устройства — этот ПК, телефон — должны быть в wg0.conf отдельными [Peer]. Кого там нет, команда отключит, в том числе SSH через VPN." />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <StackPanel Grid.Row="1">
+                    <TextBlock x:Name="PhoneError" Style="{StaticResource Body}" Foreground="{StaticResource Red}" Margin="4,0,4,12" Visibility="Collapsed" />
+                    <Grid>
+                        <Button Style="{StaticResource TextButton}" Content="Назад" HorizontalAlignment="Left" Click="PhoneBack_Click" />
+                        <Button x:Name="PhoneGo" Style="{StaticResource PillButton}" Content="Создать QR" HorizontalAlignment="Right" Click="PhoneGo_Click" />
+                    </Grid>
                 </StackPanel>
             </Grid>
 
@@ -572,6 +651,8 @@
                                    Text="sudo bash -c 'wg syncconf wg0 &lt;(wg-quick strip wg0)'" />
                     </Border>
 
+                    <TextBlock Style="{StaticResource Hint}" Margin="4,8,4,0" Foreground="{StaticResource Amber}"
+                               Text="Команда оставляет только пиров из файла: кого в wg0.conf нет, тот отключится, в том числе SSH через VPN." />
                     <TextBlock x:Name="ServerCidrText" Style="{StaticResource Hint}" Margin="4,12,4,0" />
                     <TextBlock x:Name="SavedPathText" Style="{StaticResource Hint}" Margin="4,4,4,0" />
                 </StackPanel>

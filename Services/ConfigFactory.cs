@@ -88,7 +88,8 @@ public static class ConfigFactory
         static bool ValidPort(string s) => int.TryParse(s, out int p) && p is > 0 and < 65536;
     }
 
-    public static async Task<Result> CreateAsync(Request r)
+    /// <summary>Пара ключей через wg.exe. Приватный — только в памяти вызывающего.</summary>
+    private static async Task<(string Private, string Public)> GenerateKeysAsync()
     {
         var wgui = WireGuardService.FindWireGuard() ?? throw new InvalidOperationException("WireGuard не установлен");
         var wg = Path.Combine(Path.GetDirectoryName(wgui)!, "wg.exe");
@@ -101,6 +102,12 @@ public static class ConfigFactory
         var pub = await Proc.RunAsync(wg, "pubkey", 5000, stdin: privateKey + "\n").ConfigureAwait(false);
         var publicKey = pub.Output.Trim();
         if (pub.ExitCode != 0 || publicKey.Length != 44) throw new InvalidOperationException("wg.exe не смог вычислить публичный ключ");
+        return (privateKey, publicKey);
+    }
+
+    public static async Task<Result> CreateAsync(Request r)
+    {
+        var (privateKey, publicKey) = await GenerateKeysAsync().ConfigureAwait(false);
 
         var b = r.ClientIp.GetAddressBytes();
         var serverIp = $"{b[0]}.{b[1]}.{b[2]}.1";
@@ -131,6 +138,124 @@ public static class ConfigFactory
 
         var peer = $"[Peer]\nPublicKey = {publicKey}\nAllowedIPs = {r.ClientIp}/32";
         return new Result(r.Name, path, serverIp, $"{serverIp}/24", peer);
+    }
+
+    // ---------- конфиг для телефона: свой ключ, остальное — как у этого ПК ----------
+
+    /// <param name="Config">Конфиг для QR. Нигде не сохраняется: живёт, пока открыт экран.</param>
+    /// <param name="PeerBlock">Что дописать на сервер, чтобы он пустил телефон.</param>
+    public sealed record PhoneResult(string Config, string PeerBlock);
+
+    /// <summary>Адрес ПК в туннеле (IPv4 из Address) — от него предлагается адрес телефона.</summary>
+    public static IPAddress? ClientAddress(string configPath)
+    {
+        try
+        {
+            return InterfaceLines(File.ReadAllLines(configPath.Trim().Trim('"')))
+                .Where(kv => kv.Key == "address")
+                .SelectMany(kv => kv.Value.Split(','))
+                .Select(a => IPAddress.TryParse(a.Trim().Split('/')[0], out var ip) ? ip : null)
+                .FirstOrDefault(ip => ip?.AddressFamily == AddressFamily.InterNetwork);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>Следующий адрес после ПК: 10.8.0.2 → 10.8.0.3. Свободен ли он на сервере — знает только сервер.</summary>
+    public static string SuggestPhoneIp(string configPath)
+    {
+        var ip = ClientAddress(configPath);
+        if (ip is null) return "";
+        var b = ip.GetAddressBytes();
+        b[3] = (byte)(b[3] >= 254 ? 2 : b[3] + 1);
+        return new IPAddress(b).ToString();
+    }
+
+    /// <summary>
+    /// Конфиг телефона из конфига этого ПК: новый ключ и адрес, а DNS, MTU и все [Peer] — те же.
+    /// Приватный ключ ПК не копируется. Первая строка — комментарий для WgSwitch на телефоне
+    /// (имя и IP для проверки); официальный WireGuard его пропускает.
+    /// </summary>
+    public static async Task<PhoneResult> CreatePhoneAsync(string configPath, string name, string pingHost, IPAddress phoneIp)
+    {
+        var (iface, peers, prefix, psk) = PhoneParts(File.ReadAllLines(configPath.Trim().Trim('"')));
+        var pcIp = ClientAddress(configPath);
+        if (pcIp is not null && pcIp.Equals(phoneIp)) throw new InvalidOperationException("Это адрес самого ПК — у телефона должен быть свой");
+        if (peers.Count == 0) throw new InvalidOperationException("В конфиге нет [Peer] — не с чего делать конфиг телефона");
+
+        var (privateKey, publicKey) = await GenerateKeysAsync().ConfigureAwait(false);
+        return BuildPhone(name, pingHost, phoneIp, privateKey, publicKey, iface, peers, prefix, psk);
+    }
+
+    internal static (List<string> Iface, List<string> Peers, string Prefix, string? Psk) PhoneParts(IEnumerable<string> lines)
+    {
+        string prefix = "32";
+        string? psk = null;
+        var iface = new List<string>();
+        var peers = new List<string>();
+        string section = "";
+        foreach (var line in lines)
+        {
+            var t = line.Trim();
+            if (t.StartsWith('['))
+            {
+                section = t.ToLowerInvariant();
+                if (section == "[peer]") peers.Add("[Peer]");
+                continue;
+            }
+            if (t.Length == 0 || t.StartsWith('#')) continue;
+            var (key, value) = Parse(line);
+            if (section == "[interface]")
+            {
+                if (key == "address")
+                {
+                    var v4 = value.Split(',').Select(a => a.Trim()).FirstOrDefault(a => a.Contains('.'));
+                    if (v4 is not null && v4.Contains('/')) prefix = v4.Split('/')[1];
+                }
+                else if (key is "dns" or "mtu") iface.Add(t);
+                // PrivateKey ПК, ListenPort, PreUp/PostUp и прочее — не переносим
+            }
+            else if (section == "[peer]")
+            {
+                if (key == "presharedkey") psk = value;
+                peers.Add(t);
+            }
+        }
+        return (iface, peers, prefix, psk);
+    }
+
+    internal static PhoneResult BuildPhone(string name, string pingHost, IPAddress phoneIp, string privateKey, string publicKey,
+        List<string> iface, List<string> peers, string prefix, string? psk)
+    {
+        var conf = new StringBuilder()
+            .Append($"# WgSwitch name={name} ping={pingHost}\n")
+            .Append("[Interface]\n")
+            .Append($"PrivateKey = {privateKey}\n")
+            .Append($"Address = {phoneIp}/{prefix}\n");
+        foreach (var l in iface) conf.Append(l).Append('\n');
+        foreach (var l in peers)
+        {
+            if (l == "[Peer]") conf.Append('\n');
+            conf.Append(l).Append('\n');
+        }
+
+        var peer = $"[Peer]\n# {name} · телефон\nPublicKey = {publicKey}\n"
+                   + (psk is null ? "" : $"PresharedKey = {psk}\n")
+                   + $"AllowedIPs = {phoneIp}/32";
+        return new PhoneResult(conf.ToString(), peer);
+    }
+
+    private static IEnumerable<(string Key, string Value)> InterfaceLines(IEnumerable<string> lines)
+    {
+        string section = "";
+        foreach (var line in lines)
+        {
+            var t = line.Trim();
+            if (t.StartsWith('[')) { section = t.ToLowerInvariant(); continue; }
+            if (section == "[interface]") yield return Parse(line);
+        }
     }
 
     // ---------- весь трафик через VPN: переключение в готовом конфиге ----------

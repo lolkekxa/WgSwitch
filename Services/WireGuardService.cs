@@ -42,6 +42,8 @@ public sealed partial class WireGuardService : IDisposable
         public readonly Ping Ping = new();
         public TunnelStatus Status = TunnelStatus.Initial(name);
         public volatile bool Busy;
+        /// <summary>Идёт подключение — его можно отменить вторым нажатием.</summary>
+        public CancellationTokenSource? Connecting;
         public string? Error;
         public DateTime? StartedAt;
         public int StartedPid;
@@ -178,7 +180,9 @@ public sealed partial class WireGuardService : IDisposable
         await ConnectAsync(name).ConfigureAwait(false);
     }
 
-    public Task ToggleAsync(string name) => StatusOf(name).State == TunnelState.Off ? ConnectAsync(name) : DisconnectAsync(name);
+    /// <summary>Нажатие во время подключения отменяет его, а не теряется.</summary>
+    public Task ToggleAsync(string name) =>
+        Get(name).Connecting is not null || StatusOf(name).State != TunnelState.Off ? DisconnectAsync(name) : ConnectAsync(name);
 
     public async Task ConnectAsync(string name)
     {
@@ -186,6 +190,9 @@ public sealed partial class WireGuardService : IDisposable
         if (t.Busy) return;
         t.Busy = true;
         t.Error = null;
+        using var cancel = new CancellationTokenSource();
+        t.Connecting = cancel;
+        var ct = cancel.Token;
         Publish(t, t.Status with { State = TunnelState.Connecting, Error = null, WireGuardMissing = false });
 
         try
@@ -201,18 +208,23 @@ public sealed partial class WireGuardService : IDisposable
             {
                 // служба осталась от прошлого раза, но не работает — переустанавливаем начисто
                 await Run(exe, $"/uninstalltunnelservice {name}");
-                await WaitServiceAsync(t, gone: true, TimeSpan.FromSeconds(10));
+                await WaitServiceAsync(t, gone: true, TimeSpan.FromSeconds(10), ct);
             }
 
+            ct.ThrowIfCancellationRequested();
             var r = await Run(exe, $"/installtunnelservice \"{path}\"");
             if (r.ExitCode != 0 && Native.QueryService(t.ServiceName) is null)
                 throw new UserError("WireGuard не принял конфиг: " + Short(r));
 
-            if (!await WaitServiceAsync(t, gone: false, TimeSpan.FromSeconds(15)))
+            if (!await WaitServiceAsync(t, gone: false, TimeSpan.FromSeconds(15), ct))
                 throw new UserError("Служба туннеля не запустилась. Проверьте конфиг");
 
             t.StartedAt = DateTime.Now;
             t.PingFails = 0;
+        }
+        catch (OperationCanceledException)
+        {
+            // отменили вторым нажатием — службу снимет DisconnectAsync, который и отменил
         }
         catch (Exception ex)
         {
@@ -220,6 +232,7 @@ public sealed partial class WireGuardService : IDisposable
         }
         finally
         {
+            t.Connecting = null;
             t.Busy = false;
             Wake();
         }
@@ -228,6 +241,12 @@ public sealed partial class WireGuardService : IDisposable
     public async Task DisconnectAsync(string name)
     {
         var t = Get(name);
+        // идёт подключение — прерываем ожидание и ждём, пока оно отпустит туннель (до пары секунд)
+        if (t.Connecting is { } connecting)
+        {
+            connecting.Cancel();
+            for (int i = 0; i < 40 && t.Busy; i++) await Task.Delay(100).ConfigureAwait(false);
+        }
         if (t.Busy) return;
         t.Busy = true;
         t.Error = null;
@@ -295,7 +314,7 @@ public sealed partial class WireGuardService : IDisposable
         return text.Length > 90 ? text[..90] + "…" : text;
     }
 
-    private static async Task<bool> WaitServiceAsync(Tunnel t, bool gone, TimeSpan timeout)
+    private static async Task<bool> WaitServiceAsync(Tunnel t, bool gone, TimeSpan timeout, CancellationToken ct = default)
     {
         var sw = Stopwatch.StartNew();
         while (sw.Elapsed < timeout)
@@ -303,7 +322,7 @@ public sealed partial class WireGuardService : IDisposable
             var s = Native.QueryService(t.ServiceName);
             if (gone ? s is null : s is { State: Native.ServiceState.Running }) return true;
             if (!gone && s is { State: Native.ServiceState.Stopped } && sw.Elapsed > TimeSpan.FromSeconds(3)) return false;
-            await Task.Delay(250).ConfigureAwait(false);
+            await Task.Delay(250, ct).ConfigureAwait(false);
         }
         return false;
     }

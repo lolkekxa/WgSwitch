@@ -6,6 +6,7 @@
 </p>
 
 <p align="center">
+  <a href="#-быстро-одна-команда">Одна команда</a> ·
   <a href="#-схема">Схема</a> ·
   <a href="#-0-аудит">Аудит</a> ·
   <a href="#-1-wireguard">WireGuard</a> ·
@@ -24,6 +25,28 @@
 </p>
 
 <br/>
+
+## ✦ Быстро: одна команда
+
+Скрипт [`server/wgswitch-server.sh`](server/wgswitch-server.sh) поднимает туннель и добавляет устройства,
+задавая вопросы по-русски (у каждого есть ответ по умолчанию — достаточно Enter):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lolkekxa/WgSwitch/main/server/wgswitch-server.sh   -o /usr/local/bin/wgswitch-server && chmod +x /usr/local/bin/wgswitch-server && wgswitch-server
+```
+
+Дальше — просто `sudo wgswitch-server`:
+
+| Пункт | Что делает |
+|---|---|
+| Новый туннель | **AmneziaWG** (WireGuard с маскировкой — работает, где провайдер режет WireGuard) или обычный WireGuard; свободные порт и подсеть, ключ сервера в `PrivateKey`, файрвол ufw, по желанию NAT для «всего интернета через VPN» |
+| Добавить устройство | имя → свободный IP, ключи, **QR для телефона** в терминале и `.conf` для ПК в `/etc/wgswitch/clients/` |
+| Добавить по ключу | для мастера WgSwitch на ПК: вставить его `PublicKey` — скрипт покажет, что ввести в мастере |
+| Список | устройства, их IP и последний handshake |
+| Показать QR снова / Удалить | по номеру из списка |
+
+Устройства добавляются через `wg set` и запись в файл — остальные туннели не переподключаются, SSH через VPN не рвётся.
+Старая схема с ключом сервера в `PostUp` чинится сама при первом добавлении. Ниже — то же самое вручную и подробно.
 
 ## ✦ Схема
 
@@ -115,12 +138,11 @@ cat server.pub      # → WgSwitch, мастер, поле «Публичный 
 сервера. Подставьте ключ клиента и выполните:
 
 ```bash
-cat > /etc/wireguard/wg0.conf <<'EOF'
+cat > /etc/wireguard/wg0.conf <<EOF
 [Interface]
 Address = 10.8.0.1/24
 ListenPort = 51820
-# приватный ключ берётся из файла и не лежит в конфиге
-PostUp = wg set %i private-key /etc/wireguard/server.key
+PrivateKey = $(cat /etc/wireguard/server.key)
 
 [Peer]
 PublicKey = <ключ клиента из WgSwitch>
@@ -131,7 +153,18 @@ systemctl enable --now wg-quick@wg0
 wg show
 ```
 
-`enable` одновременно ставит туннель в автозапуск. Кавычки в `<<'EOF'` нужны, чтобы shell не подставил `%i`.
+`enable` одновременно ставит туннель в автозапуск. `$(cat …)` подставит ключ в файл при записи — на экран он не выводится.
+
+> **Ключ сервера — строкой `PrivateKey` в самом `wg0.conf`, не через `PostUp = wg set %i private-key …`.**
+> Новые устройства добавляются командой `wg syncconf wg0 <(wg-quick strip wg0)`, а `strip` выбрасывает
+> `PostUp`: сервер остаётся без ключа и разом отключает всех, включая ваш SSH через VPN.
+> Если ключ уже подставляется через `PostUp`, перенесите его в файл:
+>
+> ```bash
+> f=/etc/wireguard/wg0.conf; cp $f $f.bak
+> sed -i "s|^PostUp = wg set %i private-key /etc/wireguard/server.key|PrivateKey = $(cat /etc/wireguard/server.key)|" $f
+> chmod 600 $f
+> ```
 
 ## ✦ 3. Файрвол
 
