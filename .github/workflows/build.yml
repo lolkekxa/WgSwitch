@@ -47,6 +47,9 @@ jobs:
       - name: Publish portable (.NET inside)
         run: dotnet publish WgSwitch.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:Version=${{ steps.ver.outputs.version }} -o out/full
 
+      - name: Publish for installer (.NET inside, uncompressed — LZMA of the installer packs it better)
+        run: dotnet publish WgSwitch.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:Version=${{ steps.ver.outputs.version }} -o out/setup
+
       - name: Installer
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
@@ -54,7 +57,7 @@ jobs:
             Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile is.exe
             Start-Process .\is.exe -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-' -Wait
           }
-          & $iscc installer\WgSwitch.iss "/DAppVersion=${{ steps.ver.outputs.version }}" "/DSourceExe=$PWD\out\full\WgSwitch.exe" "/O$PWD\out"
+          & $iscc installer\WgSwitch.iss "/DAppVersion=${{ steps.ver.outputs.version }}" "/DSourceExe=$PWD\out\setup\WgSwitch.exe" "/O$PWD\out"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Collect files and checksums
@@ -94,7 +97,7 @@ jobs:
             $intro, '',
             '### Какой файл скачать', '',
             '| Файл | Для чего |', '|---|---|',
-            "| ``WgSwitch-Setup$s.exe`` | установщик: всё внутри, по галочке поставит WireGuard |",
+            "| ``WgSwitch-Setup$s.exe`` | установщик (~45 МБ): всё внутри, по галочке поставит WireGuard |",
             "| ``WgSwitch-portable$s.exe`` | один файл без установки, .NET внутри |",
             "| ``WgSwitch-lite$s.exe`` | 0.6 МБ, нужен [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |", '',
             'Windows может предупредить о неизвестном издателе — [почему и что делать](https://github.com/${{ github.repository }}#-предупреждение-windows).', '',

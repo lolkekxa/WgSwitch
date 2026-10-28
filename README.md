@@ -1,4 +1,8 @@
-<h1 align="center">✦ WgSwitch</h1>
+<p align="center">
+  <img src="docs/readme/logo.svg" width="72" height="72" alt="WgSwitch" />
+</p>
+
+<h1 align="center">WgSwitch</h1>
 
 <p align="center">
   Лёгкий пульт для личного WireGuard-туннеля под Windows.<br/>
@@ -89,7 +93,7 @@ Exe весит около **0.6 МБ**, сторонних библиотек н
 
 | Файл | Для чего |
 |---|---|
-| `WgSwitch-Setup-x.y.z.exe` | установщик: ярлык в «Пуске», удаление через «Приложения», по галочке ставит WireGuard |
+| `WgSwitch-Setup-x.y.z.exe` | установщик (~45 МБ): ярлык в «Пуске», удаление через «Приложения», по галочке ставит WireGuard |
 | `WgSwitch-portable-x.y.z.exe` | один файл без установки, .NET внутри (~65 МБ) |
 | `WgSwitch-lite-x.y.z.exe` | один файл на 0.6 МБ, нужен [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |
 

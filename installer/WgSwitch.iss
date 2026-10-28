@@ -1,13 +1,14 @@
 ; Установщик WgSwitch (Inno Setup 6).
-; CI: iscc installer\WgSwitch.iss /DAppVersion=1.2.0 /DSourceExe=out\full\WgSwitch.exe /Oout
-; Внутри — сборка со встроенным .NET, так что runtime ставить не нужно.
+; CI: iscc installer\WgSwitch.iss /DAppVersion=1.2.0 /DSourceExe=out\setup\WgSwitch.exe /Oout
+; Внутри — сборка со встроенным .NET, так что runtime ставить не нужно. Её публикуем без сжатия:
+; LZMA установщика жмёт её лучше (~45 МБ против ~59), и программа стартует без распаковки в память.
 ; WireGuard не перепаковываем: по галочке скачиваем официальный подписанный установщик с wireguard.com.
 
 #ifndef AppVersion
   #define AppVersion "1.0.0"
 #endif
 #ifndef SourceExe
-  #define SourceExe "..\publish-sc\WgSwitch.exe"
+  #define SourceExe "..\out\setup\WgSwitch.exe"
 #endif
 
 [Setup]
@@ -35,6 +36,9 @@ LicenseFile=..\LICENSE
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+; тёмная боковая картинка с логотипом и иконка-тоннель в шапке страниц (обычная и для экранов ×2)
+WizardImageFile=wizard.bmp,wizard@2x.bmp
+WizardSmallImageFile=wizard-small.bmp,wizard-small@2x.bmp
 ; запущенный WgSwitch держит этот mutex — установщик попросит закрыть программу
 AppMutex=Local\WgSwitch.Instance
 CloseApplications=yes

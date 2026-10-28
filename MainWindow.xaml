@@ -22,7 +22,14 @@
         <Grid Margin="16,0,10,0">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Border Width="18" Height="18" CornerRadius="4" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1">
-                    <Ellipse x:Name="MarkDot" Width="6" Height="6" Fill="{StaticResource Muted}" />
+                    <!-- знак «тоннель», как у иконки приложения; цвет — состояние выбранного сервера -->
+                    <Viewbox Width="12" Height="12">
+                        <Canvas Width="64" Height="64">
+                            <Path x:Name="MarkArch" Data="M 15 50 L 15 32 A 17 17 0 0 1 49 32 L 49 50" StrokeThickness="7"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Stroke="{StaticResource Muted}" />
+                            <Ellipse x:Name="MarkDot" Canvas.Left="25.5" Canvas.Top="31.5" Width="13" Height="13" Fill="{StaticResource Muted}" />
+                        </Canvas>
+                    </Viewbox>
                 </Border>
                 <Canvas Width="140" Height="18" Margin="10,0,0,0" ClipToBounds="True">
                     <TextBlock x:Name="TitleText" Text="WgSwitch" FontSize="13" Foreground="{StaticResource Muted}" Canvas.Top="1">

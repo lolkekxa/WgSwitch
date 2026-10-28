@@ -5,7 +5,7 @@ using WgSwitch.Models;
 
 namespace WgSwitch.Services;
 
-/// <summary>Иконка в трее: фирменный знак (тёмный квадрат с кругом), круг окрашен по состоянию.</summary>
+/// <summary>Иконка в трее: знак «тоннель» (тёмный квадрат, арка и огонёк), арка и огонёк окрашены по состоянию.</summary>
 public sealed class TrayService : IDisposable
 {
     private static readonly Color Ink = Color.FromArgb(0x0A, 0x0A, 0x0A);
@@ -139,11 +139,11 @@ public sealed class TrayService : IDisposable
             TunnelState.Connecting => Color.FromArgb(0xF5, 0x9E, 0x0B),
             _ => Muted,
         };
-        return _icons[state] = Draw(color, state != TunnelState.Off);
+        return _icons[state] = Draw(color);
     }
 
     /// <summary>Рисуем иконку под текущий DPI: квадрат 14/64 скругления, круг по центру — как favicon.</summary>
-    private static Icon Draw(Color dot, bool glow)
+    private static Icon Draw(Color accent)
     {
         int s = SystemInformation.SmallIconSize.Width;
         using var bmp = new Bitmap(s, s);
@@ -152,7 +152,7 @@ public sealed class TrayService : IDisposable
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
-            float r = s * 14f / 64f, d = r * 2;
+            float cr = s * 14f / 64f, d = cr * 2;
             using var path = new GraphicsPath();
             path.AddArc(0, 0, d, d, 180, 90);
             path.AddArc(s - d - 0.5f, 0, d, d, 270, 90);
@@ -162,12 +162,19 @@ public sealed class TrayService : IDisposable
             using (var bg = new SolidBrush(Ink)) g.FillPath(bg, path);
             using (var border = new Pen(Line, Math.Max(1f, s / 32f))) g.DrawPath(border, path);
 
-            float c = s * 0.2f;
-            if (glow)
-                using (var halo = new SolidBrush(Color.FromArgb(70, dot)))
-                    g.FillEllipse(halo, s / 2f - c * 1.6f, s / 2f - c * 1.6f, c * 3.2f, c * 3.2f);
-            using var fill = new SolidBrush(dot);
-            g.FillEllipse(fill, s / 2f - c, s / 2f - c, c * 2, c * 2);
+            // тоннель в сетке 64×64: арка и огонёк внутри; на мелком размере линии толще, чтобы арка не растворялась
+            float k = s / 64f;
+            bool small = s <= 24;
+            using var pen = new Pen(accent, (small ? 7f : 5.5f) * k) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
+            using var arch = new GraphicsPath();
+            arch.AddLine(15 * k, 50 * k, 15 * k, 32 * k);
+            arch.AddArc(15 * k, 15 * k, 34 * k, 34 * k, 180, 180);
+            arch.AddLine(49 * k, 32 * k, 49 * k, 50 * k);
+            g.DrawPath(pen, arch);
+
+            float r = (small ? 6.5f : 5.5f) * k;
+            using var fill = new SolidBrush(accent);
+            g.FillEllipse(fill, 32 * k - r, 38 * k - r, r * 2, r * 2);
         }
 
         var h = bmp.GetHicon();

@@ -152,6 +152,7 @@ public partial class MainWindow : Window
         DotGlow.Color = accent;
         DotGlow.Opacity = accent == Muted ? 0 : 0.9;
         MarkDot.Fill = new SolidColorBrush(accent);
+        MarkArch.Stroke = MarkDot.Fill;
         if (spinning) StartDotPing(accent); else StopDotPing();
 
         if (text != _shownText)
