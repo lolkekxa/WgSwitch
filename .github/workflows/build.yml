@@ -63,6 +63,48 @@ jobs:
           & $iscc installer\WgSwitch.iss "/DAppVersion=${{ steps.ver.outputs.version }}" "/DFileVersion=${{ steps.ver.outputs.file }}" "/DSourceExe=$PWD\out\setup\WgSwitch.exe" "/O$PWD\out"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Android tests
+        run: |
+          Push-Location android
+          ./gradlew.bat --no-daemon :app:testDebugUnitTest
+          $code = $LASTEXITCODE
+          Pop-Location
+          if ($code -ne 0) { exit $code }
+
+      - name: Android APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          WGS_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          WGS_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          WGS_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          $missing = @('KEYSTORE_B64', 'WGS_KEYSTORE_PASSWORD', 'WGS_KEY_ALIAS', 'WGS_KEY_PASSWORD') |
+            Where-Object { -not [Environment]::GetEnvironmentVariable($_) }
+          if ($missing) {
+            if ('${{ github.ref }}' -like 'refs/tags/v*') {
+              throw "Нужны GitHub Actions secrets для подписи Android APK: $($missing -join ', ')"
+            }
+            Write-Host '::warning::Не заданы секреты подписи Android — APK не собирается'
+            exit 0
+          }
+          $env:WGS_KEYSTORE = Join-Path $env:RUNNER_TEMP 'release.jks'
+          [IO.File]::WriteAllBytes($env:WGS_KEYSTORE, [Convert]::FromBase64String($env:KEYSTORE_B64))
+          try {
+            Push-Location android
+            ./gradlew.bat --no-daemon "-PappVersion=${{ steps.ver.outputs.version }}" :app:assembleRelease
+            $code = $LASTEXITCODE
+          } finally {
+            Pop-Location
+            Remove-Item $env:WGS_KEYSTORE -Force
+          }
+          if ($code -ne 0) { exit $code }
+          Copy-Item android/app/build/outputs/apk/release/app-release.apk out/WgSwitch.apk
+
       - name: Collect files and checksums
         run: |
           $s = '${{ steps.ver.outputs.suffix }}'
@@ -70,7 +112,9 @@ jobs:
           Copy-Item out\WgSwitch-Setup.exe "dist\WgSwitch-Setup$s.exe"
           Copy-Item out\full\WgSwitch.exe "dist\WgSwitch-portable$s.exe"
           Copy-Item out\lite\WgSwitch.exe "dist\WgSwitch-lite$s.exe"
-          Get-ChildItem dist\*.exe | ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
+          if (Test-Path out\WgSwitch.apk) { Copy-Item out\WgSwitch.apk "dist\WgSwitch$s.apk" }
+          Get-ChildItem dist -File | Where-Object { $_.Extension -in '.exe', '.apk' } |
+            ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
             Set-Content dist\SHA256SUMS.txt -Encoding utf8
           Get-Content dist\SHA256SUMS.txt
 
@@ -95,6 +139,7 @@ jobs:
             $intro = "Сборка из ``main`` ($('${{ github.sha }}'.Substring(0, 7))). Для постоянной версии берите [последний релиз](https://github.com/${{ github.repository }}/releases/latest)."
           }
           $sums = Get-Content dist\SHA256SUMS.txt -Raw
+          $apk = if (Test-Path "dist\WgSwitch$s.apk") { "| ``WgSwitch$s.apk`` | Android 8+: движок AmneziaWG встроен, отдельный клиент не нужен |" } else { $null }
           $nl = [Environment]::NewLine
           $body = @(
             $intro, '',
@@ -102,7 +147,8 @@ jobs:
             '| Файл | Для чего |', '|---|---|',
             "| ``WgSwitch-Setup$s.exe`` | установщик (~45 МБ): всё внутри, по галочке поставит WireGuard |",
             "| ``WgSwitch-portable$s.exe`` | один файл без установки, .NET внутри |",
-            "| ``WgSwitch-lite$s.exe`` | 0.6 МБ, нужен [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |", '',
+            "| ``WgSwitch-lite$s.exe`` | 0.7 МБ, нужен [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |",
+            $apk, '',
             'Windows может предупредить о неизвестном издателе — [почему и что делать](https://github.com/${{ github.repository }}#-предупреждение-windows).', '',
             '### SHA-256', '', '```', $sums.Trim(), '```'
           ) -join $nl
@@ -114,7 +160,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete latest --cleanup-tag --yes 2>$null
           git tag -f dev
           git push -f origin dev
           exit 0

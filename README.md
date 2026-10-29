@@ -112,6 +112,7 @@ Lite-сборка весит около **0.7 МБ**, сторонних биб�
 | `WgSwitch-Setup-x.y.z.exe` | установщик (~45 МБ): ярлык в «Пуске», удаление через «Приложения», по галочке ставит WireGuard |
 | `WgSwitch-portable-x.y.z.exe` | один файл без установки, .NET внутри (~63 МБ) |
 | `WgSwitch-lite-x.y.z.exe` | один файл на 0.7 МБ, нужен [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) |
+| `WgSwitch-x.y.z.apk` | Android 8+, движок AmneziaWG встроен — отдельный клиент не нужен |
 
 WireGuard для Windows нужен в любом случае: туннель поднимает именно он. В установщик он не вшит,
 а скачивается официальный подписанный — так всегда приходит свежая версия от разработчиков WireGuard.
@@ -187,7 +188,7 @@ Get-FileHash .\WgSwitch-Setup-1.0.2.exe -Algorithm SHA256
   свайпом), плитка быстрых настроек, виджет и «Постоянный VPN» Android.
 - **Сам переподключается.** Сервер молчит дольше 20 секунд — туннель перезапускается со свежим handshake, не чаще раза в минуту.
 
-APK пока собирается локально (см. [Сборка](#-сборка)); подробная установка — в [docs/SETUP.md](docs/SETUP.md#-3-телефон-android).
+APK — в [релизах](https://github.com/lolkekxa/WgSwitch/releases/latest), файл `WgSwitch-x.y.z.apk`; подробная установка — в [docs/SETUP.md](docs/SETUP.md#-3-телефон-android).
 
 ## ✦ Сервер одной командой
 
@@ -231,7 +232,9 @@ icacls C:\ProgramData\WgSwitch /inheritance:r /grant:r "*S-1-5-32-544:(OI)(CI)F"
 
 ## ✦ Сборка
 
-Каждый пуш на GitHub Actions прогоняет тесты и собирает три файла: установщик, portable и lite.
+Каждый пуш на GitHub Actions прогоняет тесты (Windows и Android) и собирает установщик, portable, lite и APK.
+APK подписывается постоянным ключом из секретов репозитория `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`,
+`ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`; без них APK в сборках `main` пропускается, а релиз по тегу не выйдет.
 
 - пуш в `main` обновляет пре-релиз [`dev`](https://github.com/lolkekxa/WgSwitch/releases/tag/dev) — свежая сборка для проверки;
 - тег вида `v1.2.0` выпускает постоянный релиз «WgSwitch 1.2.0» с описанием из [CHANGELOG.md](CHANGELOG.md).
