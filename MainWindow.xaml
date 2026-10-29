@@ -324,7 +324,9 @@
             <!-- ===================== сервер: быстрые действия и проверка портов ===================== -->
             <Grid x:Name="ToolsPanel" Margin="16,0,16,16" Visibility="Collapsed" Opacity="0">
                 <Grid.RenderTransform><TranslateTransform /></Grid.RenderTransform>
-                <StackPanel>
+                <!-- с карточкой «Состояние» панель длиннее окна: прокрутка, как в настройках -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False" Margin="0,0,-6,0">
+                <StackPanel Margin="0,0,6,8">
                     <Grid Margin="4,8,4,0">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource Index}" Text="(01)" /><TextBlock Style="{StaticResource Label}" Text="Быстрые действия" />
@@ -432,6 +434,7 @@
                     </Border>
                     <TextBlock x:Name="HealthHint" Style="{StaticResource Hint}" Margin="4,8,4,0" TextWrapping="Wrap" />
                 </StackPanel>
+                </ScrollViewer>
             </Grid>
 
             <!-- ===================== телефон: свой ключ и QR-код ===================== -->
