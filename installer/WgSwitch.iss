@@ -60,6 +60,7 @@ Name: "wireguard"; Description: "Установить WireGuard для Windows (
 [Files]
 Source: "{#SourceExe}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\Assets\Fonts\OFL.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\WgSwitch"; Filename: "{app}\WgSwitch.exe"
