@@ -1,0 +1,61 @@
+name: Ошибка
+description: Что-то не работает или работает не так
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Сначала загляните в [разбор ошибок](https://github.com/lolkekxa/WgSwitch/blob/main/TROUBLESHOOTING.md) — там большинство случаев.
+        **Не вставляйте приватные ключи** (`PrivateKey = …`): в выводах ниже их нет, а в `.conf` — есть.
+  - type: dropdown
+    id: where
+    attributes:
+      label: Где
+      options:
+        - WgSwitch на Windows
+        - WgSwitch на Android
+        - wgswitch-server (скрипт на сервере)
+        - Установщик
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Версия
+      description: Windows — внизу настроек; Android — внизу настроек; скрипт — дата скачивания
+      placeholder: 1.1.1
+    validations:
+      required: true
+  - type: dropdown
+    id: engine
+    attributes:
+      label: Туннель
+      options:
+        - WireGuard
+        - AmneziaWG
+        - не знаю
+  - type: textarea
+    id: what
+    attributes:
+      label: Что случилось
+      description: Что делали, что ожидали, что получилось. Текст сообщения на экране — дословно
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Как повторить
+      placeholder: |
+        1. …
+        2. …
+  - type: textarea
+    id: server
+    attributes:
+      label: Сервер
+      description: Вывод `wgswitch-server list` или `wg show` (`awg show` для AmneziaWG) — в нём только публичные ключи
+      render: text
+  - type: textarea
+    id: screens
+    attributes:
+      label: Скриншоты
+      description: Для Windows удобно включить «Подробно на главной» — будут видны handshake и трафик

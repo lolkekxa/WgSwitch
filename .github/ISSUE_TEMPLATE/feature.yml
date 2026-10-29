@@ -1,0 +1,27 @@
+name: Идея
+description: Чего не хватает
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: where
+    attributes:
+      label: Где
+      multiple: true
+      options:
+        - WgSwitch на Windows
+        - WgSwitch на Android
+        - wgswitch-server
+        - Документация
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую задачу решить
+      description: Не «добавьте кнопку X», а что сейчас неудобно и в какой ситуации
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Как это могло бы выглядеть

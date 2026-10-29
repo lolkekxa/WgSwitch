@@ -24,8 +24,13 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/lolkekxa/WgSwitch/releases/latest"><img alt="release" src="https://img.shields.io/github/v/release/lolkekxa/WgSwitch?style=flat-square&labelColor=0a0a0a&color=b8ecc8&label=release" /></a>
+  <a href="https://github.com/lolkekxa/WgSwitch/releases"><img alt="downloads" src="https://img.shields.io/github/downloads/lolkekxa/WgSwitch/total?style=flat-square&labelColor=0a0a0a&color=a5e8f5&label=downloads" /></a>
   <a href="https://github.com/lolkekxa/WgSwitch/actions/workflows/build.yml"><img alt="build" src="https://img.shields.io/github/actions/workflow/status/lolkekxa/WgSwitch/build.yml?branch=main&style=flat-square&labelColor=0a0a0a&label=build" /></a>
+  <a href="https://github.com/lolkekxa/WgSwitch/security/code-scanning"><img alt="CodeQL" src="https://img.shields.io/github/actions/workflow/status/lolkekxa/WgSwitch/codeql.yml?branch=main&style=flat-square&labelColor=0a0a0a&label=CodeQL" /></a>
+  <br/>
   <img alt="Windows 10/11" src="https://img.shields.io/badge/Windows-10_%2F_11-a5e8f5?style=flat-square&labelColor=0a0a0a" />
+  <img alt="Android 8+" src="https://img.shields.io/badge/Android-8%2B-b8ecc8?style=flat-square&labelColor=0a0a0a" />
   <img alt=".NET 8" src="https://img.shields.io/badge/.NET-8_·_WPF-c4b5fd?style=flat-square&labelColor=0a0a0a" />
   <img alt="WireGuard" src="https://img.shields.io/badge/WireGuard-official_client-b8ecc8?style=flat-square&labelColor=0a0a0a" />
   <img alt="0 NuGet" src="https://img.shields.io/badge/NuGet-0_пакетов-fbe3a0?style=flat-square&labelColor=0a0a0a" />
@@ -35,6 +40,10 @@
 <br/>
 
 <img src="docs/readme/hero.png" alt="WgSwitch: подключено, сервер не отвечает, настройки" width="100%" />
+
+<p align="center">
+  <img src="docs/readme/connect.gif" alt="Подключение и отключение: дуга ожидания, кольцо дорисовывается, пульс" width="320" />
+</p>
 
 <br/>
 
@@ -126,11 +135,15 @@ Exe не подписан сертификатом разработчика, п�
 - **Контроль учётных записей: «Неизвестный издатель»** → «Да». Права администратора нужны, чтобы
   ставить и снимать службу туннеля WireGuard.
 
-Убедиться, что файл ровно тот, что собрал GitHub, можно по контрольной сумме из описания релиза:
+Убедиться, что файл ровно тот, что собрал GitHub, можно по контрольной сумме из описания релиза
+или по подтверждению сборки: GitHub подписывает каждый файл и сообщает, каким workflow и из какого коммита он собран.
 
 ```powershell
-Get-FileHash .\WgSwitch-Setup-1.0.2.exe -Algorithm SHA256
+Get-FileHash .\WgSwitch-Setup-1.1.1.exe -Algorithm SHA256
+gh attestation verify .\WgSwitch-Setup-1.1.1.exe --repo lolkekxa/WgSwitch   # нужен GitHub CLI
 ```
+
+Что программа хранит и куда ходит в сеть — в [SECURITY.md](SECURITY.md).
 
 Каждый файл в релизах собирается из этого репозитория на GitHub Actions — [журнал сборок](https://github.com/lolkekxa/WgSwitch/actions).
 Чтобы предупреждение исчезло, нужна подпись кодом: бесплатно для open source через SignPath Foundation
@@ -204,6 +217,8 @@ curl -fsSL https://raw.githubusercontent.com/lolkekxa/WgSwitch/main/server/wgswi
 [SERVER.md](SERVER.md#-быстро-одна-команда) и [docs/SETUP.md](docs/SETUP.md).
 
 ## ✦ Безопасность
+
+Об уязвимостях — приватно, по [SECURITY.md](SECURITY.md).
 
 - **Конфиги.** Мастер кладёт их в `C:\ProgramData\WgSwitch`, а доступ к папке есть только у Администраторов и SYSTEM.
 - **Приватный ключ.** Существует только в `.conf`. Приложение видит его, когда создаёт ключ (`wg genkey`), шифрует резервную копию и переписывает `AllowedIPs` при смене режима. Ключ держится только в памяти, в логи и настройки не попадает, а при смене режима остаётся в том же файле.

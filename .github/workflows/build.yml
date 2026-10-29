@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write       # подтверждение сборки (attestation)
+  attestations: write
 
 jobs:
   build:
@@ -117,6 +119,15 @@ jobs:
             ForEach-Object { "$((Get-FileHash $_ -Algorithm SHA256).Hash.ToLower())  $($_.Name)" } |
             Set-Content dist\SHA256SUMS.txt -Encoding utf8
           Get-Content dist\SHA256SUMS.txt
+
+      # подтверждение сборки: GitHub подписывает каждый файл, и «gh attestation verify» покажет, каким workflow
+      # и из какого коммита он собран — подменённый файл проверку не пройдёт
+      - uses: actions/attest-build-provenance@v4
+        if: github.event_name == 'push'
+        with:
+          subject-path: |
+            dist/*.exe
+            dist/*.apk
 
       # артефакты делят квоту хранилища со всем аккаунтом — если она кончилась, сборку это не валит
       - uses: actions/upload-artifact@v4

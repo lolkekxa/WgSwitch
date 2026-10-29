@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Уязвимость
+    url: https://github.com/lolkekxa/WgSwitch/security/advisories/new
+    about: Приватно, не в публичном issue — см. SECURITY.md
+  - name: Настройка с нуля
+    url: https://github.com/lolkekxa/WgSwitch/blob/main/docs/SETUP.md
+    about: Сервер, ПК и телефон — по шагам
