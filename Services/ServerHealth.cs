@@ -40,7 +40,7 @@ public static class ServerHealthProbe
             if (r.ExitCode == 0 && Parse(r.Output) is { } h) return (h, null);
             var err = r.Error;
             if (err.Contains("Permission denied", StringComparison.OrdinalIgnoreCase))
-                return (null, "нужен вход по SSH-ключу: ssh-copy-id " + user + "@" + host);
+                return (null, "нужен вход по SSH-ключу: добавьте ~/.ssh/id_ed25519.pub в /" + (user == "root" ? "root" : "home/" + user) + "/.ssh/authorized_keys на сервере");
             if (err.Contains("REMOTE HOST IDENTIFICATION HAS CHANGED", StringComparison.OrdinalIgnoreCase))
                 return (null, "у сервера сменился ключ SSH — проверьте known_hosts");
             if (err.Contains("timed out", StringComparison.OrdinalIgnoreCase) || err.Contains("Connection refused", StringComparison.OrdinalIgnoreCase))

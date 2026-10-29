@@ -113,8 +113,8 @@ journalctl -u wg-quick@wg0 -n 30 --no-pager
 | Сообщение | Почему | Что сделать |
 |---|---|---|
 | WireGuard для Windows не найден | нет `C:\Program Files\WireGuard\wireguard.exe` | установить с [wireguard.com/install](https://www.wireguard.com/install/), статус обновится сам |
-| AmneziaWG для Windows не найден | у конфига параметры AmneziaWG (`Jc`, `S1`, `H1`…), а нет `C:\Program Files\AmneziaWG\amneziawg.exe` | установить [AmneziaWG для Windows](https://github.com/amnezia-vpn/amneziawg-windows-client/releases/latest), статус обновится сам |
-| Состояние: нужен вход по SSH-ключу | сервер просит пароль, а WgSwitch пароли не вводит | `ssh-copy-id root@<IP в туннеле>` или добавить свой `.pub` в `~/.ssh/authorized_keys` на сервере |
+| AmneziaWG для Windows не найден | у конфига параметры AmneziaWG (`Jc`, `S1`, `H1`…), а нет `C:\Program Files\AmneziaWG\amneziawg.exe` | установить [AmneziaWG для Windows](https://github.com/amnezia-vpn/amneziawg-windows-client/releases/latest), статус обновится сам; вся настройка — [SETUP.md, шаг 2.6](docs/SETUP.md#26-если-провайдер-режет-wireguard-amneziawg-на-пк) |
+| Состояние: нужен вход по SSH-ключу | сервер просит пароль, а WgSwitch пароли не вводит | PowerShell: `type $env:USERPROFILE\.ssh\id_ed25519.pub \| ssh root@<IP в туннеле> "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"`; ключа нет — сначала `ssh-keygen -t ed25519`. Подробно — [SETUP.md, шаг 2.7](docs/SETUP.md#27-полезное-на-пк) |
 | Состояние: SSH не отвечает | порт SSH закрыт или другой | проверить «Порт SSH» в панели сервера и точку у строки SSH |
 | Конфиг не найден: `имя.conf` | файл удалён или перемещён | Настройки → «Конфиг ›» или «Импорт» из резервной копии |
 | Отказано в доступе: запустите от администратора | программа запущена без прав администратора | запустить от администратора; автозапуск через планировщик делает это сам |
