@@ -11,7 +11,7 @@
     <RootNamespace>WgSwitch</RootNamespace>
     <Product>WgSwitch</Product>
     <!-- версия для локальной сборки; CI подставляет свою из тега (v1.2.0 → 1.2.0) -->
-    <Version>1.1.1</Version>
+    <Version>1.2.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <!-- тесты лежат внутри папки проекта: в само приложение их не включаем -->
     <DefaultItemExcludes>$(DefaultItemExcludes);tests/**;installer/**</DefaultItemExcludes>

@@ -3,7 +3,7 @@
 Формат: [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии — [SemVer](https://semver.org/lang/ru/).
 Раздел нужной версии попадает в описание релиза на GitHub.
 
-## [Unreleased]
+## [1.2.0] — 2026-10-29
 
 ### Добавлено
 - ПК: туннели AmneziaWG. Движок выбирается по конфигу: есть `Jc`, `S1`, `H1`… в `[Interface]` — туннель поднимает

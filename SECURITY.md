@@ -55,10 +55,10 @@ WgSwitch держит ключи от ваших серверов, поэтом�
 
 ```powershell
 # контрольная сумма — сравнить с SHA256SUMS.txt в релизе
-Get-FileHash .\WgSwitch-Setup-1.1.1.exe -Algorithm SHA256
+Get-FileHash .\WgSwitch-Setup-1.2.0.exe -Algorithm SHA256
 
 # подтверждение сборки от GitHub (нужен GitHub CLI): какой workflow, из какого коммита
-gh attestation verify .\WgSwitch-Setup-1.1.1.exe --repo lolkekxa/WgSwitch
+gh attestation verify .\WgSwitch-Setup-1.2.0.exe --repo lolkekxa/WgSwitch
 ```
 
 APK подписан постоянным ключом проекта: Android не поставит поверх него APK, подписанный другим ключом.
@@ -68,4 +68,4 @@ APK подписан постоянным ключом проекта: Android �
 32:DB:03:20:73:F4:4A:B0:5D:F3:1C:AC:37:4A:8E:FE:69:1D:D4:63:2A:D5:22:5D:13:F1:02:8F:45:A0:2D:CC
 ```
 
-Проверить: `apksigner verify --print-certs WgSwitch-1.1.1.apk`.
+Проверить: `apksigner verify --print-certs WgSwitch-1.2.0.apk`.

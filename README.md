@@ -144,8 +144,8 @@ Exe не подписан сертификатом разработчика, п�
 или по подтверждению сборки: GitHub подписывает каждый файл и сообщает, каким workflow и из какого коммита он собран.
 
 ```powershell
-Get-FileHash .\WgSwitch-Setup-1.1.1.exe -Algorithm SHA256
-gh attestation verify .\WgSwitch-Setup-1.1.1.exe --repo lolkekxa/WgSwitch   # нужен GitHub CLI
+Get-FileHash .\WgSwitch-Setup-1.2.0.exe -Algorithm SHA256
+gh attestation verify .\WgSwitch-Setup-1.2.0.exe --repo lolkekxa/WgSwitch   # нужен GitHub CLI
 ```
 
 Что программа хранит и куда ходит в сеть — в [SECURITY.md](SECURITY.md).
