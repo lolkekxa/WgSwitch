@@ -10,7 +10,7 @@
     <AssemblyName>WgSwitch</AssemblyName>
     <RootNamespace>WgSwitch</RootNamespace>
     <Product>WgSwitch</Product>
-    <!-- версия для локальной сборки; CI подставляет свою из тега (v1.2.1 → 1.2.0) -->
+    <!-- версия для локальной сборки; CI подставляет свою из тега (v1.2.1 → 1.2.1) -->
     <Version>1.2.1</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <!-- тесты лежат внутри папки проекта: в само приложение их не включаем -->
