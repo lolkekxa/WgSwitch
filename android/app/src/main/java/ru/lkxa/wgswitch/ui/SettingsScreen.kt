@@ -19,12 +19,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import ru.lkxa.wgswitch.App
 import ru.lkxa.wgswitch.BuildConfig
 import ru.lkxa.wgswitch.data.ConfigText
@@ -41,6 +43,8 @@ fun SettingsScreen(app: App, nav: Nav, settings: Settings, askNotifications: () 
     var name by remember(server?.name) { mutableStateOf(server?.name ?: "") }
     var host by remember(server?.name) { mutableStateOf(server?.pingHost ?: "") }
     var confirmDelete by remember { mutableStateOf(false) }
+    var updateCheck by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(confirmDelete) { if (confirmDelete) { delay(3000); confirmDelete = false } }
 
     val restorePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -114,6 +118,20 @@ fun SettingsScreen(app: App, nav: Nav, settings: Settings, askNotifications: () 
                 app.store.update { it.copy(notify = on) }
                 if (on) askNotifications()
             }, hint = "с кнопками; закрывается свайпом")
+            ToggleRow("Проверять обновления", settings.checkUpdates, { on ->
+                app.haptics.light()
+                app.store.update { it.copy(checkUpdates = on) }
+            }, hint = "при запуске и раз в 12 часов, на GitHub")
+            ActionRow("Проверить обновления", updateCheck) {
+                updateCheck = "проверяю…"
+                scope.launch {
+                    updateCheck = when (app.updates.check()) {
+                        true -> "вышла новая — на главной"
+                        false -> "у вас последняя"
+                        null -> "нет связи с GitHub"
+                    }
+                }
+            }
             ActionRow("Постоянный VPN", "Android") {
                 try { context.startActivity(Intent(AndroidSettings.ACTION_VPN_SETTINGS)) } catch (_: Exception) { }
             }

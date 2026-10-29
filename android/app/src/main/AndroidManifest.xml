@@ -5,6 +5,14 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- обновление из релизов GitHub: APK скачивается в кэш и открывается системной установкой -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- Android 11+ иначе не скажет, есть ли приложение для ssh:// и sftp:// (строки в панели сервера) -->
+    <queries>
+        <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="ssh" /></intent>
+        <intent><action android:name="android.intent.action.VIEW" /><data android:scheme="sftp" /></intent>
+    </queries>
 
     <!-- камера нужна только сканеру Google, он просит её сам; без неё приложение работает -->
     <uses-feature android:name="android.hardware.camera" android:required="false" />
@@ -42,6 +50,14 @@
             </intent-filter>
             <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
         </service>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
+        </provider>
 
         <!-- кнопки уведомления и виджета -->
         <receiver android:name=".vpn.Actions" android:exported="false" />

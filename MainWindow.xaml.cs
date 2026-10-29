@@ -192,9 +192,10 @@ public partial class MainWindow : Window
         if (s.WireGuardMissing)
         {
             MessageText.Foreground = new SolidColorBrush(Muted);
-            MessageText.Inlines.Add(new Run("WireGuard для Windows не найден. "));
+            var engine = _wg.EngineOf(s.TunnelName);
+            MessageText.Inlines.Add(new Run($"{engine.Name} для Windows не найден. "));
             var link = new Hyperlink(new Run("Установить ↗")) { Foreground = new SolidColorBrush(Fg), Cursor = Cursors.Hand };
-            link.Click += (_, _) => App.OpenUrl(WireGuardService.InstallUrl);
+            link.Click += (_, _) => App.OpenUrl(engine.InstallUrl);
             MessageText.Inlines.Add(link);
         }
         else if (s.Error is { } err)
@@ -1116,11 +1117,15 @@ public partial class MainWindow : Window
             _probeTimer ??= new DispatcherTimer(TimeSpan.FromSeconds(5), DispatcherPriority.Background, (_, _) => _ = ProbeAsync(), Dispatcher);
             _probeTimer.Start();
             _ = ProbeAsync();
+            _healthTimer ??= new DispatcherTimer(TimeSpan.FromSeconds(30), DispatcherPriority.Background, (_, _) => _ = HealthAsync(), Dispatcher);
+            _healthTimer.Start();
+            _ = HealthAsync();
         }
         else
         {
             SaveToolsFields();
             _probeTimer?.Stop();
+            _healthTimer?.Stop();
             MainPanel.Visibility = Visibility.Visible;
             Slide(ToolsPanel, MainPanel, -1);
             SetTitle("WgSwitch");
@@ -1134,6 +1139,7 @@ public partial class MainWindow : Window
         SaveToolsFields();
         _toolsOpen = false;
         _probeTimer?.Stop();
+        _healthTimer?.Stop();
         ToolsPanel.Visibility = Visibility.Collapsed;
         ToolsPanel.IsHitTestVisible = false;
         MainPanel.Visibility = Visibility.Visible;
@@ -1209,6 +1215,50 @@ public partial class MainWindow : Window
         SetDot(SshDot, ssh); SetDot(SftpDot, ssh); SetDot(PanelDot, web);
     }
 
+    // ---------- состояние сервера: по SSH-ключу, одна команда только для чтения ----------
+
+    private DispatcherTimer? _healthTimer;
+    private bool _healthBusy;
+
+    private async Task HealthAsync()
+    {
+        if (_healthBusy || _settings.Find(_selected) is not { } s) return;
+        bool up = _wg.StatusOf(_selected).State is TunnelState.Connected or TunnelState.NoResponse;
+        if (!up)
+        {
+            ShowHealth(null, "Туннель выключен — состояние читается по SSH внутри туннеля.");
+            return;
+        }
+        _healthBusy = true;
+        try
+        {
+            var name = _selected;
+            var (h, err) = await ServerHealthProbe.ReadAsync(s.SshUser, s.PingHost, s.SshPort);
+            if (!_toolsOpen || !Same(name, _selected)) return;
+            ShowHealth(h, err is null ? $"По SSH-ключу, раз в 30 секунд. Обновлено в {DateTime.Now:HH:mm:ss}." : char.ToUpper(err[0]) + err[1..]);
+        }
+        finally { _healthBusy = false; }
+    }
+
+    private void ShowHealth(ServerHealth? h, string hint)
+    {
+        HealthHint.Text = hint;
+        void Set(System.Windows.Controls.TextBlock tb, string text, bool warn = false)
+        {
+            tb.Text = text;
+            tb.Foreground = new SolidColorBrush(h is null ? Faint : warn ? Red : Fg);
+        }
+        if (h is null)
+        {
+            foreach (var tb in new[] { HealthUptime, HealthLoad, HealthMem, HealthDisk }) Set(tb, "—");
+            return;
+        }
+        Set(HealthUptime, h.Uptime.TotalDays >= 1 ? $"{(int)h.Uptime.TotalDays} д {h.Uptime.Hours} ч" : $"{h.Uptime.Hours} ч {h.Uptime.Minutes} мин");
+        Set(HealthLoad, $"{h.Load.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)} · ядер {h.Cpus}", h.Load > h.Cpus);
+        Set(HealthMem, $"{Bytes(h.MemUsed)} / {Bytes(h.MemTotal)} · {h.MemShare:P0}", h.MemShare > 0.9);
+        Set(HealthDisk, $"{Bytes(h.DiskUsed)} / {Bytes(h.DiskTotal)} · {h.DiskShare:P0}", h.DiskShare > 0.9);
+    }
+
     private static void SetDot(System.Windows.Shapes.Ellipse dot, bool? ok) =>
         dot.Fill = new SolidColorBrush(ok is null ? Faint : ok.Value ? Green : Red);
 
@@ -1263,6 +1313,11 @@ public partial class MainWindow : Window
         if (_settings.Find(_selected) is not { } s) return;
         ClearPhone();
         PhoneIpBox.Text = ConfigFactory.SuggestPhoneIp(s.ConfigPath);
+        // у AmneziaWG на сервере свои файл и утилита
+        var (conf, tool) = WireGuardService.EngineFor(s.ConfigPath) == WireGuardService.Amnezia
+            ? ("/etc/amnezia/amneziawg/awg0.conf", "awg") : ("/etc/wireguard/wg0.conf", "wg");
+        PhoneApplyHint.Text = $"Допишите в {conf} и примените: sudo bash -c '{tool} syncconf {Path.GetFileNameWithoutExtension(conf)} <({tool}-quick strip {Path.GetFileNameWithoutExtension(conf)})'. " +
+                              "Ключ телефона на ПК не сохраняется — закроете экран, и QR пропадёт. Или проще: wgswitch-server → «Добавить по ключу».";
         _phoneOpen = true;
         _probeTimer?.Stop();
         GearButton.Visibility = Visibility.Collapsed; // кнопка сервера привязана к ней и спрячется тоже

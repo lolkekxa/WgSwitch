@@ -52,6 +52,7 @@ sealed class Screen(val depth: Int, val title: String) {
     data object Main : Screen(0, "WgSwitch")
     data object Welcome : Screen(0, "WgSwitch")
     data object Settings : Screen(1, "Настройки")
+    data object Tools : Screen(1, "Сервер")
     data object Add : Screen(2, "Добавить сервер")
     data object Export : Screen(2, "Резервная копия")
     class NewServer(val config: String, val name: String) : Screen(3, "Новый сервер")
@@ -100,13 +101,26 @@ fun WgSwitchApp(app: App, withVpn: (() -> Unit) -> Unit, vpnDenied: MutableState
 
     Column(Modifier.fillMaxSize().background(C.Bg).systemBarsPadding().imePadding()) {
         Header(
-            title = nav.top.title,
+            title = if (nav.top is Screen.Tools) selected?.name ?: "Сервер" else nav.top.title,
             mark = markColor,
-            gear = nav.top is Screen.Main || nav.top is Screen.Settings,
+            gear = nav.top is Screen.Main || nav.top is Screen.Settings || nav.top is Screen.Tools,
             gearOpen = nav.top is Screen.Settings,
             onGear = {
                 app.haptics.light()
-                if (nav.top is Screen.Settings) nav.pop() else nav.push(Screen.Settings)
+                when (nav.top) {
+                    Screen.Settings -> nav.pop()
+                    Screen.Tools -> { nav.pop(); nav.push(Screen.Settings) }
+                    else -> nav.push(Screen.Settings)
+                }
+            },
+            toolsOpen = nav.top is Screen.Tools,
+            onTools = {
+                app.haptics.light()
+                when (nav.top) {
+                    Screen.Tools -> nav.pop()
+                    Screen.Settings -> { nav.pop(); nav.push(Screen.Tools) }
+                    else -> nav.push(Screen.Tools)
+                }
             },
         )
         val density = LocalDensity.current
@@ -126,6 +140,7 @@ fun WgSwitchApp(app: App, withVpn: (() -> Unit) -> Unit, vpnDenied: MutableState
                 when (screen) {
                     Screen.Main -> MainScreen(app, settings, status, withVpn, notice) { notice = null }
                     Screen.Welcome -> AddScreen(app, nav, welcome = true)
+                    Screen.Tools -> ToolsScreen(app, settings)
                     Screen.Settings -> SettingsScreen(app, nav, settings, askNotifications)
                     Screen.Add -> AddScreen(app, nav, welcome = false)
                     Screen.Export -> ExportScreen(app, nav)
@@ -138,11 +153,19 @@ fun WgSwitchApp(app: App, withVpn: (() -> Unit) -> Unit, vpnDenied: MutableState
 }
 
 @Composable
-private fun Header(title: String, mark: androidx.compose.ui.graphics.Color, gear: Boolean, gearOpen: Boolean, onGear: () -> Unit) {
+private fun Header(
+    title: String, mark: androidx.compose.ui.graphics.Color, gear: Boolean, gearOpen: Boolean, onGear: () -> Unit,
+    toolsOpen: Boolean, onTools: () -> Unit,
+) {
     Row(Modifier.fillMaxWidth().height(60.dp).padding(start = 20.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         Mark(mark)
         Spacer(Modifier.width(12.dp))
         Rolling(title, T.title, Modifier.weight(1f))
+        // панель сервера: SSH, SFTP, веб-панель — видна там же, где шестерёнка
+        val toolsTint by animateColorAsState(if (toolsOpen) C.Fg else C.Muted, tween(250), label = "toolsTint")
+        if (gear) Box(Modifier.size(44.dp).clip(CircleShape).press(onTools), contentAlignment = Alignment.Center) {
+            Glyph(SERVER, toolsTint, size = 20.dp)
+        }
         val turn by animateFloatAsState(if (gearOpen) 90f else 0f, tween(700, easing = Expo), label = "gear")
         val tint by animateColorAsState(if (gearOpen) C.Fg else C.Muted, tween(250), label = "gearTint")
         val alpha by animateFloatAsState(if (gear) 1f else 0f, tween(250), label = "gearAlpha")
@@ -154,6 +177,8 @@ private fun Header(title: String, mark: androidx.compose.ui.graphics.Color, gear
         }
     }
 }
+
+const val SERVER = "M4 2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M4 14h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2z M6 6h.01 M6 18h.01"
 
 const val GEAR = "M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M15 12a3 3 0 1 1-6 0a3 3 0 1 1 6 0z"
 

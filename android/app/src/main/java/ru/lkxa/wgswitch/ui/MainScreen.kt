@@ -125,6 +125,7 @@ fun MainScreen(app: App, settings: Settings, live: Status, withVpn: (() -> Unit)
         )
 
         StatusCard(status, settings.showDetails)
+        UpdateLine(app)
     }
 }
 

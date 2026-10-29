@@ -51,7 +51,10 @@ public sealed partial class WireGuardService : IDisposable
         public DateTime? SilentSince;
         public DateTime LastReconnect;
 
-        public string ServiceName => "WireGuardTunnel$" + Name;
+        /// <summary>Движок по конфигу: обновляется при Sync и перед подключением.</summary>
+        public EngineInfo Engine = WireGuard;
+
+        public string ServiceName => Engine.ServicePrefix + Name;
 
         public void Dispose() => Ping.Dispose();
     }
@@ -96,7 +99,8 @@ public sealed partial class WireGuardService : IDisposable
         {
             return string.Join(";", NetworkInterface.GetAllNetworkInterfaces()
                 .Where(n => n.OperationalStatus == OperationalStatus.Up && n.NetworkInterfaceType != NetworkInterfaceType.Loopback
-                            && !n.Description.Contains("WireGuard", StringComparison.OrdinalIgnoreCase))
+                            && !n.Description.Contains("WireGuard", StringComparison.OrdinalIgnoreCase)
+                            && !n.Description.Contains("AmneziaWG", StringComparison.OrdinalIgnoreCase))
                 .SelectMany(n => n.GetIPProperties().UnicastAddresses.Select(a => n.Id + "/" + a.Address))
                 .Order());
         }
@@ -124,7 +128,11 @@ public sealed partial class WireGuardService : IDisposable
                 _tunnels.Remove(gone);
             }
             foreach (var n in names)
-                if (!_tunnels.ContainsKey(n)) _tunnels[n] = new Tunnel(n);
+            {
+                if (!_tunnels.TryGetValue(n, out var t)) _tunnels[n] = t = new Tunnel(n);
+                // работающий туннель не перекидываем на другой движок посреди опроса — только выключенный
+                if (t.Status.State == TunnelState.Off) t.Engine = EngineFor(_settings.Find(n)?.ConfigPath);
+            }
         }
         Wake();
     }
@@ -151,16 +159,42 @@ public sealed partial class WireGuardService : IDisposable
             try { _wake.Release(); } catch (SemaphoreFullException) { }
     }
 
-    public static string? FindWireGuard()
+    // ---------- движки: обычный WireGuard и AmneziaWG (WireGuard с маскировкой от DPI) ----------
+
+    /// <summary>
+    /// Клиент движка: GUI-программа ставит и снимает службы туннелей, CLI читает handshake и делает ключи.
+    /// У AmneziaWG для Windows те же команды (/installtunnelservice…), другие только имена.
+    /// </summary>
+    public sealed record EngineInfo(string Name, string Folder, string Gui, string Cli, string ServicePrefix, string InstallUrl)
+    {
+        public string? GuiPath => Find(Folder, Gui);
+        public string? CliPath => Find(Folder, Cli);
+    }
+
+    public static readonly EngineInfo WireGuard = new("WireGuard", "WireGuard", "wireguard.exe", "wg.exe", "WireGuardTunnel$", InstallUrl);
+    public static readonly EngineInfo Amnezia = new("AmneziaWG", "AmneziaWG", "amneziawg.exe", "awg.exe", "AmneziaWGTunnel$",
+        "https://github.com/amnezia-vpn/amneziawg-windows-client/releases/latest");
+
+    /// <summary>Конфиг с Jc/S1/H1… — AmneziaWG, иначе обычный WireGuard.</summary>
+    public static EngineInfo EngineFor(string? configPath) => ConfigFactory.IsAmnezia(configPath) ? Amnezia : WireGuard;
+
+    public EngineInfo EngineOf(string name)
+    {
+        lock (_tunnels) return _tunnels.TryGetValue(name, out var t) ? t.Engine : EngineFor(_settings.Find(name)?.ConfigPath);
+    }
+
+    private static string? Find(string folder, string exe)
     {
         foreach (var root in new[] { Environment.GetEnvironmentVariable("ProgramW6432"), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) })
         {
             if (string.IsNullOrEmpty(root)) continue;
-            var exe = Path.Combine(root, "WireGuard", "wireguard.exe");
-            if (File.Exists(exe)) return exe;
+            var path = Path.Combine(root, folder, exe);
+            if (File.Exists(path)) return path;
         }
         return null;
     }
+
+    public static string? FindWireGuard() => WireGuard.GuiPath;
 
     private Tunnel Get(string name)
     {
@@ -197,8 +231,9 @@ public sealed partial class WireGuardService : IDisposable
 
         try
         {
-            var exe = FindWireGuard() ?? throw new UserError("WireGuard не установлен", missing: true);
             var path = ValidateConfig(_settings.Find(name)?.ConfigPath);
+            t.Engine = EngineFor(path);
+            var exe = t.Engine.GuiPath ?? throw new UserError($"{t.Engine.Name} не установлен", missing: true);
 
             var svc = Native.QueryService(t.ServiceName);
             if (svc is { State: Native.ServiceState.Running })
@@ -256,7 +291,7 @@ public sealed partial class WireGuardService : IDisposable
         {
             if (Native.QueryService(t.ServiceName) is not null)
             {
-                var exe = FindWireGuard() ?? throw new UserError("WireGuard не установлен", missing: true);
+                var exe = t.Engine.GuiPath ?? throw new UserError($"{t.Engine.Name} не установлен", missing: true);
                 var r = await Run(exe, $"/uninstalltunnelservice {name}");
                 if (!await WaitServiceAsync(t, gone: true, TimeSpan.FromSeconds(10)))
                     throw new UserError("Не удалось остановить туннель: " + Short(r));
@@ -336,12 +371,11 @@ public sealed partial class WireGuardService : IDisposable
             Tunnel[] snapshot;
             lock (_tunnels) snapshot = [.. _tunnels.Values];
 
-            bool missing = FindWireGuard() is null;
             var selected = _settings.SelectedName;
             try
             {
                 await Task.WhenAll(snapshot.Select(t =>
-                    PollAsync(t, missing, _detailed && string.Equals(t.Name, selected, StringComparison.OrdinalIgnoreCase)))).ConfigureAwait(false);
+                    PollAsync(t, t.Engine.GuiPath is null, _detailed && string.Equals(t.Name, selected, StringComparison.OrdinalIgnoreCase)))).ConfigureAwait(false);
             }
             catch { /* опрос не должен ронять приложение; следующая итерация попробует снова */ }
 
@@ -363,7 +397,7 @@ public sealed partial class WireGuardService : IDisposable
             t.PingFails = 0;
             t.StartedAt = null;
             t.StartedPid = 0;
-            Publish(t, new TunnelStatus(TunnelState.Off, t.Name, Error: t.Error ?? (missing ? "WireGuard не установлен" : null), WireGuardMissing: missing));
+            Publish(t, new TunnelStatus(TunnelState.Off, t.Name, Error: t.Error ?? (missing ? $"{t.Engine.Name} не установлен" : null), WireGuardMissing: missing));
             return;
         }
 
@@ -414,7 +448,7 @@ public sealed partial class WireGuardService : IDisposable
         long? rx = null, tx = null;
         // handshake и трафик — два запуска wg.exe; нужны, только если их показывают на главной
         if (detailed && _settings.Current.ShowDetails)
-            (handshake, rx, tx) = await ReadWgStatsAsync(t.Name).ConfigureAwait(false);
+            (handshake, rx, tx) = await ReadWgStatsAsync(t).ConfigureAwait(false);
 
         Publish(t, new TunnelStatus(state, t.Name, rtt, since, handshake, rx, tx, t.Error));
     }
@@ -452,10 +486,11 @@ public sealed partial class WireGuardService : IDisposable
     /// Handshake и трафик через «wg show &lt;tunnel&gt; latest-handshakes / transfer».
     /// В отличие от «dump», эти команды не выводят приватный ключ интерфейса.
     /// </summary>
-    private static async Task<(DateTime?, long?, long?)> ReadWgStatsAsync(string tunnel)
+    private static async Task<(DateTime?, long?, long?)> ReadWgStatsAsync(Tunnel t)
     {
-        var exe = FindWireGuard() is { } wgui ? Path.Combine(Path.GetDirectoryName(wgui)!, "wg.exe") : null;
-        if (exe is null || !File.Exists(exe)) return (null, null, null);
+        var exe = t.Engine.CliPath;
+        if (exe is null) return (null, null, null);
+        var tunnel = t.Name;
 
         try
         {

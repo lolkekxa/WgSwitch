@@ -12,10 +12,17 @@ mkdir -p "$T/bin" "$WGS_ETC/wireguard" "$WGS_ETC/amnezia/amneziawg" "$WGS_ETC/wg
 for t in wg awg; do
     cat >"$T/bin/$t" <<'EOF'
 #!/usr/bin/env bash
+conf() { ls "$WGS_ETC"/wireguard/"$1".conf "$WGS_ETC"/amnezia/amneziawg/"$1".conf 2>/dev/null | head -1; }
+pub() { printf '%s' "$1" | sha256sum | cut -c1-64 | xxd -r -p | base64; }
 case $1 in
     genkey) head -c 32 /dev/urandom | base64 ;;
-    pubkey) read -r k; printf '%s' "$k" | sha256sum | cut -c1-64 | xxd -r -p | base64 ;;
-    show) exit 0 ;;
+    pubkey) read -r k; pub "$k" ;;
+    show)
+        f=$(conf "$2")
+        case ${3-} in
+            public-key) pub "$(grep -i '^PrivateKey' "$f" | sed 's/^[^=]*= *//')" ;;
+            peers) grep -i '^PublicKey' "$f" | sed 's/^[^=]*= *//' ;;
+        esac ;;
     set) echo "$(basename "$0") $*" >>"$LOG" ;;
 esac
 EOF
@@ -55,6 +62,8 @@ H2 = 222
 H3 = 333
 H4 = 444
 EOF
+# конфиг устройства, сложенный рядом с туннелем вручную: туннелем считаться не должен
+printf '[Interface]\nPrivateKey = X=\nAddress = 10.19.0.9/32\n\n[Peer]\nEndpoint = 1.2.3.4:51821\n' >"$WGS_ETC/amnezia/amneziawg/phone.conf"
 echo 153.80.178.94 >"$WGS_ETC/wgswitch/wg0.endpoint"
 echo 153.80.178.94 >"$WGS_ETC/wgswitch/awg0.endpoint"
 
@@ -151,5 +160,35 @@ grep -q 'systemctl enable --now awg-quick@awg1' "$LOG" || fail "служба н�
 grep -q 'ip_forward = 1' "$WGS_ETC/sysctl.d/99-wgswitch.conf" || fail "ip_forward"
 [ "$(cat "$WGS_ETC/wgswitch/awg1.endpoint")" = 203.0.113.7 ] || fail "адрес сервера не определён"
 pass "новый туннель AmneziaWG"
+
+# 8. смена ключа устройства: tab в awg0
+printf '#!/bin/sh\necho enabled\n' >"$T/bin/systemctl"; chmod +x "$T/bin/systemctl"
+run '2\ntab\n\n\nn\n' add
+TC=$WGS_ETC/wgswitch/clients/awg0-tab.conf
+OLD_PRIV=$(grep '^PrivateKey' "$TC"); OLD_PUB=$(grep -A2 '^# tab$' "$WGS_ETC/amnezia/amneziawg/awg0.conf" | grep PublicKey | cut -d' ' -f3)
+run '1\n2\n1\ny\n' rotate
+[ "$(grep '^PrivateKey' "$TC")" != "$OLD_PRIV" ] || fail "ключ устройства не сменился"
+grep -q "$OLD_PUB" "$WGS_ETC/amnezia/amneziawg/awg0.conf" && fail "старый ключ остался на сервере"
+NEW_PUB=$(grep '^PrivateKey' "$TC" | sed 's/^[^=]*= *//' | wg pubkey)
+grep -q "^PublicKey = $NEW_PUB\$" "$WGS_ETC/amnezia/amneziawg/awg0.conf" || fail "новый ключ не записан на сервер"
+grep -qF "awg set awg0 peer $OLD_PUB remove" "$LOG" || fail "старый пир не снят"
+grep -q '^Jc = 4$' "$TC" || fail "параметры маскировки потерялись"
+pass "смена ключа устройства"
+
+# 9. смена ключа сервера wg0: конфиги устройств получают новый ключ сервера
+OLD_SRV=$(grep '^PrivateKey' "$WGS_ETC/wireguard/wg0.conf")
+run '2\n1\ny\n' rotate
+[ "$(grep '^PrivateKey' "$WGS_ETC/wireguard/wg0.conf")" != "$OLD_SRV" ] || fail "ключ сервера не сменился"
+grep -q '^wg set wg0 private-key' "$LOG" || fail "ключ не применён к интерфейсу"
+grep -q 'Новый публичный ключ сервера' "$T/out" || fail "нет ключа для устройств, добавленных по ключу"
+pass "смена ключа сервера"
+
+# 10. проверка здоровья
+run '' doctor
+for want in 'интерфейс работает' 'ключ сервера в файле' 'работающий ключ совпадает с файлом' 'устройства в памяти и в файле совпадают'; do
+    grep -q "$want" "$T/out" || { cat "$T/out"; fail "doctor: нет «$want»"; }
+done
+grep -q "phone.* — " "$T/out" && fail "конфиг устройства принят за туннель"
+pass "проверка здоровья"
 
 echo "все проверки пройдены"

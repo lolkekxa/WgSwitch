@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
         val app = App.of(this)
         setContent { WgSwitchApp(app, ::withVpn, vpnDenied, ::askNotifications) }
         if (savedInstanceState == null && app.store.current.notify) askNotifications()
+        app.updates.checkIfDue()
         handle(intent)
     }
 

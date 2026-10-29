@@ -91,9 +91,9 @@ public static class ConfigFactory
     /// <summary>Пара ключей через wg.exe. Приватный — только в памяти вызывающего.</summary>
     private static async Task<(string Private, string Public)> GenerateKeysAsync()
     {
-        var wgui = WireGuardService.FindWireGuard() ?? throw new InvalidOperationException("WireGuard не установлен");
-        var wg = Path.Combine(Path.GetDirectoryName(wgui)!, "wg.exe");
-        if (!File.Exists(wg)) throw new InvalidOperationException("Не найден wg.exe в папке WireGuard");
+        // ключи у обоих движков одинаковые: подойдёт wg.exe или awg.exe, что найдётся
+        var wg = WireGuardService.WireGuard.CliPath ?? WireGuardService.Amnezia.CliPath
+                 ?? throw new InvalidOperationException(WireGuardService.FindWireGuard() is null ? "WireGuard не установлен" : "Не найден wg.exe в папке WireGuard");
 
         var gen = await Proc.RunAsync(wg, "genkey", 5000).ConfigureAwait(false);
         var privateKey = gen.Output.Trim();
@@ -214,7 +214,7 @@ public static class ConfigFactory
                     var v4 = value.Split(',').Select(a => a.Trim()).FirstOrDefault(a => a.Contains('.'));
                     if (v4 is not null && v4.Contains('/')) prefix = v4.Split('/')[1];
                 }
-                else if (key is "dns" or "mtu") iface.Add(t);
+                else if (key is "dns" or "mtu" || AmneziaKeys.Contains(key)) iface.Add(t);
                 // PrivateKey ПК, ListenPort, PreUp/PostUp и прочее — не переносим
             }
             else if (section == "[peer]")
@@ -340,6 +340,27 @@ public static class ConfigFactory
 
         static string Normalize(string s) => string.Concat(s.Where(c => !char.IsWhiteSpace(c))).ToLowerInvariant();
     }
+
+    /// <summary>Параметры маскировки AmneziaWG в [Interface]: у устройства и сервера они должны совпадать.</summary>
+    private static readonly HashSet<string> AmneziaKeys =
+        ["jc", "jmin", "jmax", "s1", "s2", "s3", "s4", "h1", "h2", "h3", "h4", "i1", "i2", "i3", "i4", "i5"];
+
+    /// <summary>Конфиг AmneziaWG: в [Interface] есть параметры маскировки. Ключи не читаются — только имена строк.</summary>
+    public static bool IsAmnezia(string? configPath)
+    {
+        try
+        {
+            var path = configPath?.Trim().Trim('"');
+            return !string.IsNullOrEmpty(path) && File.Exists(path) && IsAmneziaText(File.ReadLines(path));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    internal static bool IsAmneziaText(IEnumerable<string> lines) =>
+        InterfaceLines(lines).Any(kv => AmneziaKeys.Contains(kv.Key));
 
     private static (string Key, string Value) Parse(string line)
     {

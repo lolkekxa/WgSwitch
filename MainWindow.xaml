@@ -405,6 +405,32 @@
                     </Border>
                     <TextBlock x:Name="ToolsNote" Style="{StaticResource Hint}" Margin="4,8,4,0"
                                Text="Сохраняется само. SSH и SFTP идут на IP сервера внутри туннеля." />
+
+                    <!-- состояние сервера по SSH-ключу: раз в 30 секунд, пока панель открыта -->
+                    <StackPanel Orientation="Horizontal" Margin="4,20,4,0">
+                        <TextBlock Style="{StaticResource Index}" Text="(03)" /><TextBlock Style="{StaticResource Label}" Text="Состояние" />
+                    </StackPanel>
+                    <Border Style="{StaticResource SettingsCard}" Padding="16,6">
+                        <StackPanel>
+                            <Grid Height="30">
+                                <TextBlock Style="{StaticResource Label}" Text="Аптайм" VerticalAlignment="Center" />
+                                <TextBlock x:Name="HealthUptime" Style="{StaticResource Value}" VerticalAlignment="Center" Text="—" Foreground="{StaticResource Faint}" />
+                            </Grid>
+                            <Grid Height="30">
+                                <TextBlock Style="{StaticResource Label}" Text="Нагрузка" VerticalAlignment="Center" />
+                                <TextBlock x:Name="HealthLoad" Style="{StaticResource Value}" VerticalAlignment="Center" Text="—" Foreground="{StaticResource Faint}" />
+                            </Grid>
+                            <Grid Height="30">
+                                <TextBlock Style="{StaticResource Label}" Text="Память" VerticalAlignment="Center" />
+                                <TextBlock x:Name="HealthMem" Style="{StaticResource Value}" VerticalAlignment="Center" Text="—" Foreground="{StaticResource Faint}" />
+                            </Grid>
+                            <Grid Height="30">
+                                <TextBlock Style="{StaticResource Label}" Text="Диск" VerticalAlignment="Center" />
+                                <TextBlock x:Name="HealthDisk" Style="{StaticResource Value}" VerticalAlignment="Center" Text="—" Foreground="{StaticResource Faint}" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock x:Name="HealthHint" Style="{StaticResource Hint}" Margin="4,8,4,0" TextWrapping="Wrap" />
                 </StackPanel>
             </Grid>
 
@@ -461,7 +487,7 @@
                                 </StackPanel>
                             </Border>
                             <TextBlock Style="{StaticResource Hint}" Margin="4,8,4,0"
-                                       Text="Допишите в /etc/wireguard/wg0.conf и примените: sudo bash -c 'wg syncconf wg0 &lt;(wg-quick strip wg0)'. Ключ телефона на ПК не сохраняется — закроете экран, и QR пропадёт." />
+                                       x:Name="PhoneApplyHint" />
                             <TextBlock Style="{StaticResource Hint}" Margin="4,6,4,0" Foreground="{StaticResource Amber}"
                                        Text="Все устройства — этот ПК, телефон — должны быть в wg0.conf отдельными [Peer]. Кого там нет, команда отключит, в том числе SSH через VPN." />
                         </StackPanel>

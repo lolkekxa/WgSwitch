@@ -41,12 +41,17 @@ conf_path() { if is_awg "$1"; then echo "$ETC/amnezia/amneziawg/$1.conf"; else e
 service()   { echo "$(quick "$1")@$1"; }
 engine()    { if is_awg "$1"; then echo AmneziaWG; else echo WireGuard; fi; }
 
+# туннели сервера: конфиг с ListenPort (у конфигов устройств его нет — например, phone.conf, сложенный рядом вручную)
 interfaces() {
-    local f
+    local f n
     for f in "$ETC"/wireguard/*.conf "$ETC"/amnezia/amneziawg/*.conf; do
         [ -f "$f" ] || continue
-        grep -qi '^[[:space:]]*\[Interface\]' "$f" && basename "$f" .conf
+        n=$(basename "$f" .conf)
+        # движок определяется по имени: в папке AmneziaWG — только awg*, в папке WireGuard — всё, кроме awg*
+        case "$f" in */amnezia/*) [[ $n == awg* ]] || continue ;; *) [[ $n == awg* ]] && continue ;; esac
+        grep -qiE '^[[:space:]]*ListenPort[[:space:]]*=' "$f" && echo "$n"
     done
+    return 0
 }
 
 # значение ключа из секции [Interface]
@@ -313,6 +318,154 @@ cmd_remove() {
     ok "«${name:-без имени}» удалён из $iface"
 }
 
+# ---------- смена ключей ----------
+
+# заменить PublicKey пира в файле (по старому ключу)
+replace_peer_key() { # iface old new
+    local f; f=$(conf_path "$1")
+    cp "$f" "$f.bak.$(date +%Y%m%d-%H%M%S)"
+    awk -v o="$2" -v n="$3" '
+        tolower($0) ~ /^[ \t]*publickey[ \t]*=/ && index($0, o) { print "PublicKey = " n; next }
+        { print }' "$f" >"$f.tmp"
+    mv "$f.tmp" "$f"; chmod 600 "$f"
+}
+
+# в конфиге устройства: новый приватный ключ или новый ключ сервера в [Peer]
+set_client_value() { # file section key value
+    awk -v sec="$2" -v k="$3" -v v="$4" '
+        /^[ \t]*\[/ { s = tolower($0) }
+        s ~ sec && tolower($0) ~ "^[ \t]*" k "[ \t]*=" { print $0 ~ /^[ \t]*[A-Za-z]/ ? substr($0, 1, index($0, "=") - 1) "= " v : $0; next }
+        { print }' "$1" >"$1.tmp"
+    mv "$1.tmp" "$1"; chmod 600 "$1"
+}
+
+rotate_device() {
+    local iface name pub ip rows t file new_priv new_pub
+    pick_peer
+    t=$(tool "$iface"); file="$CLIENTS/$iface-$name.conf"
+    if [ -f "$file" ]; then
+        yes_no "Новый ключ для «${name:-без имени}»? Старый перестанет работать, устройству нужен новый QR" y || { echo "Отменено"; return; }
+        new_priv=$("$t" genkey); new_pub=$(printf '%s\n' "$new_priv" | "$t" pubkey)
+        set_client_value "$file" interface privatekey "$new_priv"
+        unset new_priv
+    else
+        warn "Ключ «${name:-без имени}» создавался на самом устройстве — новый ключ сделайте там же (мастер WgSwitch) и вставьте сюда"
+        ask "Новый публичный ключ устройства"
+        new_pub=$(printf '%s' "$REPLY" | sed 's/^[[:space:]]*PublicKey[[:space:]]*=[[:space:]]*//; s/[[:space:]]//g')
+        [[ $new_pub =~ ^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$ ]] || die "Это не ключ WireGuard"
+    fi
+    replace_peer_key "$iface" "$pub" "$new_pub"
+    if "$t" show "$iface" >/dev/null 2>&1; then
+        "$t" set "$iface" peer "$pub" remove
+        "$t" set "$iface" peer "$new_pub" allowed-ips "$ip"
+    fi
+    ok "Ключ «${name:-без имени}» заменён, остальные устройства не переподключались"
+    [ -f "$file" ] && show_client "$file" "$iface"
+}
+
+rotate_server() {
+    local iface t f key pub n=0 c
+    iface=$(pick_iface); t=$(tool "$iface"); f=$(conf_path "$iface")
+    fix_postup_key "$iface"
+    warn "Новый ключ сервера отключит ВСЕ устройства $iface, пока у них не будет нового конфига."
+    yes_no "Продолжить" n || { echo "Отменено"; return; }
+    key=$("$t" genkey); pub=$(printf '%s\n' "$key" | "$t" pubkey)
+    cp "$f" "$f.bak.$(date +%Y%m%d-%H%M%S)"
+    awk -v k="$key" 'tolower($0) ~ /^[ \t]*privatekey[ \t]*=/ { print "PrivateKey = " k; next } { print }' "$f" >"$f.tmp"
+    mv "$f.tmp" "$f"; chmod 600 "$f"
+    if "$t" show "$iface" >/dev/null 2>&1; then "$t" set "$iface" private-key <(printf '%s\n' "$key"); fi
+    unset key
+    for c in "$CLIENTS/$iface"-*.conf; do
+        [ -f "$c" ] || continue
+        set_client_value "$c" peer publickey "$pub"; n=$((n + 1))
+    done
+    ok "Ключ сервера $iface заменён. Конфигов устройств обновлено: $n — покажите им новый QR (пункт «Показать QR»)"
+    echo "  Новый публичный ключ сервера (для устройств, добавленных по ключу): $pub"
+}
+
+cmd_rotate() {
+    echo
+    echo "  1) Ключ устройства — потеряли телефон, ключ мог утечь"
+    echo "  2) Ключ сервера — отключит все устройства до нового конфига"
+    ask "Что заменить" 1
+    case $REPLY in 1) rotate_device ;; 2) rotate_server ;; *) die "Нет такого варианта" ;; esac
+}
+
+# ---------- проверка здоровья ----------
+
+DOC_FAIL=0
+d_ok()   { printf '  %s✓%s %s\n' "$G" "$N" "$*"; }
+d_warn() { printf '  %s!%s %s\n' "$Y" "$N" "$*"; }
+d_bad()  { printf '  %s✗%s %s\n' "$R" "$N" "$*"; DOC_FAIL=$((DOC_FAIL + 1)); }
+
+doctor_iface() {
+    local iface=$1 t f port svc running file_pub run_pub
+    t=$(tool "$iface"); f=$(conf_path "$iface"); port=$(iface_get "$iface" ListenPort); svc=$(service "$iface")
+    printf '\n%s%s%s — %s, порт %s\n' "$B" "$iface" "$N" "$(engine "$iface")" "${port:-?}"
+
+    if [ "$(systemctl is-enabled "$svc" 2>/dev/null)" = enabled ]; then d_ok "запускается при загрузке ($svc)"
+    else d_warn "не в автозапуске: systemctl enable $svc"; fi
+
+    if "$t" show "$iface" >/dev/null 2>&1; then running=1; d_ok "интерфейс работает"
+    else running=0; d_bad "интерфейс не поднят: systemctl restart $svc, причина — journalctl -u $svc"; fi
+
+    if grep -qiE '^[[:space:]]*PrivateKey[[:space:]]*=' "$f"; then d_ok "ключ сервера в файле (PrivateKey)"
+    elif grep -qiE '^[[:space:]]*PostUp[[:space:]]*=.*private-key' "$f"; then
+        d_bad "ключ сервера в PostUp — wg syncconf оставит сервер без ключа"
+        yes_no "    Перенести ключ в PrivateKey сейчас" y && fix_postup_key "$iface"
+    else d_bad "в $f нет ключа сервера"; fi
+
+    if [ $running = 1 ] && grep -qiE '^[[:space:]]*PrivateKey' "$f"; then
+        file_pub=$(server_pub "$iface"); run_pub=$("$t" show "$iface" public-key 2>/dev/null || true)
+        if [ -z "$run_pub" ]; then d_bad "у работающего интерфейса нет ключа — сервер никому не отвечает: $t set $iface private-key <файл ключа>"
+        elif [ "$run_pub" != "$file_pub" ]; then d_bad "работающий ключ сервера не совпадает с файлом — после перезапуска устройства отвалятся"
+        else d_ok "работающий ключ совпадает с файлом"; fi
+    fi
+
+    if [ -n "$port" ]; then
+        if ss -Hlun 2>/dev/null | awk '{print $4}' | grep -qE "[:.]$port\$"; then d_ok "порт $port/udp слушается"
+        elif [ $running = 1 ]; then d_bad "порт $port/udp не слушается"; fi
+        if command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q 'Status: active'; then
+            if ufw status 2>/dev/null | grep -qE "^$port/udp[[:space:]]+ALLOW"; then d_ok "ufw пропускает $port/udp"
+            else
+                d_bad "ufw не пропускает $port/udp — устройства не достучатся"
+                yes_no "    Открыть $port/udp сейчас" y && ufw allow "$port/udp" >/dev/null && d_ok "открыт"
+            fi
+        fi
+        hint "    Файрвол хостера (в панели) скрипт не видит — там тоже должен быть открыт $port/udp."
+    fi
+
+    if grep -qiE 'MASQUERADE' "$f"; then
+        if [ "$(sysctl -n net.ipv4.ip_forward 2>/dev/null)" = 1 ]; then d_ok "NAT: ip_forward включён"
+        else d_bad "NAT настроен, но ip_forward выключен: sysctl -w net.ipv4.ip_forward=1"; fi
+    fi
+
+    if is_awg "$iface"; then
+        if lsmod 2>/dev/null | grep -q '^amneziawg' || [ "${WGS_NO_ROOT:-}" = 1 ]; then d_ok "модуль amneziawg загружен"
+        else d_bad "модуль amneziawg не загружен: modprobe amneziawg (после обновления ядра — apt install --reinstall amneziawg)"; fi
+    fi
+
+    if [ $running = 1 ]; then
+        local mem disk p missing=0 unapplied=0
+        mem=$("$t" show "$iface" peers 2>/dev/null || true)
+        disk=$(peers "$iface" | cut -f2)
+        for p in $mem; do grep -qxF "$p" <<<"$disk" || missing=$((missing + 1)); done
+        for p in $disk; do grep -qxF "$p" <<<"$mem" || unapplied=$((unapplied + 1)); done
+        [ $missing -gt 0 ] && d_bad "$missing устр. работают, но их нет в файле — после перезапуска отвалятся"
+        [ $unapplied -gt 0 ] && d_warn "$unapplied устр. в файле, но не применены — применится при перезапуске или «Добавить устройство»"
+        [ $missing = 0 ] && [ $unapplied = 0 ] && d_ok "устройства в памяти и в файле совпадают ($(grep -c . <<<"$disk" || true))"
+    fi
+}
+
+cmd_doctor() {
+    local any=0 iface
+    DOC_FAIL=0
+    for iface in $(interfaces); do any=1; doctor_iface "$iface"; done
+    [ $any = 1 ] || { warn "Туннелей ещё нет — «Новый туннель»"; return; }
+    echo
+    if [ $DOC_FAIL = 0 ]; then ok "Проблем не найдено"; else warn "Проблем: $DOC_FAIL — подсказки выше"; fi
+}
+
 # ---------- новый туннель ----------
 
 free_subnet() {
@@ -347,7 +500,8 @@ step() {
     pid=$!
     if [ -t 1 ]; then
         while kill -0 "$pid" 2>/dev/null; do
-            printf '%s %s %s(%d с)%s ' "${frames:i++%4:1}" "$label" "$D" $((SECONDS - start)) "$N"
+            printf '
+%s %s %s(%d с)%s ' "${frames:i++%4:1}" "$label" "$D" $((SECONDS - start)) "$N"
             sleep 0.25
         done
     else
@@ -355,10 +509,12 @@ step() {
 ' "$label"
     fi
     if wait "$pid"; then
-        printf '%s✓%s %s %s(%d с)%s[K
+        printf '
+%s✓%s %s %s(%d с)%s[K
 ' "$G" "$N" "$label" "$D" $((SECONDS - start)) "$N"
     else
-        printf '%s✗%s %s[K
+        printf '
+%s✗%s %s[K
 ' "$R" "$N" "$label"
         echo "--- последние строки журнала:" >&2
         tail -n 15 "$LOG_FILE" >&2
@@ -461,10 +617,12 @@ menu() {
         echo "  4) Показать QR устройства снова"
         echo "  5) Удалить устройство"
         echo "  6) Новый туннель (AmneziaWG или WireGuard)"
+        echo "  7) Заменить ключи — устройства или сервера"
+        echo "  8) Проверка: всё ли настроено правильно"
         echo "  0) Выход"
         ask "Что сделать" 1
         case $REPLY in
-            1) cmd_add ;; 2) cmd_add_key ;; 3) cmd_list ;; 4) cmd_qr ;; 5) cmd_remove ;; 6) cmd_new ;;
+            1) cmd_add ;; 2) cmd_add_key ;; 3) cmd_list ;; 4) cmd_qr ;; 5) cmd_remove ;; 6) cmd_new ;; 7) cmd_rotate ;; 8) cmd_doctor ;;
             0 | q | exit) return ;;
             *) warn "Нет такого пункта" ;;
         esac
@@ -476,8 +634,9 @@ main() {
     exec 3<"$TTY" || die "Нет терминала для вопросов: запустите из обычной SSH-сессии"
     case ${1-} in
         add) cmd_add ;; add-key) cmd_add_key ;; list) cmd_list ;; qr) cmd_qr ;; remove) cmd_remove ;; new) cmd_new ;;
+        rotate) cmd_rotate ;; doctor) cmd_doctor ;;
         "") if [ -z "$(interfaces)" ]; then echo "Туннелей ещё нет — создадим первый."; cmd_new; fi; menu ;;
-        *) echo "Использование: wgswitch-server [add|add-key|list|qr|remove|new]"; exit 1 ;;
+        *) echo "Использование: wgswitch-server [add|add-key|list|qr|remove|new|rotate|doctor]"; exit 1 ;;
     esac
 }
 

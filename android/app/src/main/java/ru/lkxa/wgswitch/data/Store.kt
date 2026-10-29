@@ -22,6 +22,7 @@ data class Settings(
     val haptics: Boolean = true,
     val showDetails: Boolean = false,
     val notify: Boolean = true,
+    val checkUpdates: Boolean = true,
 ) {
     fun find(name: String?) = servers.firstOrNull { it.name.equals(name, ignoreCase = true) }
     val selectedServer get() = find(selected) ?: servers.firstOrNull()
@@ -100,6 +101,7 @@ class Store(private val dir: File) {
             haptics = o.optBoolean("haptics", true),
             showDetails = o.optBoolean("showDetails", false),
             notify = o.optBoolean("notify", true),
+            checkUpdates = o.optBoolean("checkUpdates", true),
         )
     } catch (_: Exception) {
         Settings()
@@ -115,6 +117,7 @@ class Store(private val dir: File) {
             .put("haptics", s.haptics)
             .put("showDetails", s.showDetails)
             .put("notify", s.notify)
+            .put("checkUpdates", s.checkUpdates)
         writeAtomically(file, o.toString(2))
     }
 
